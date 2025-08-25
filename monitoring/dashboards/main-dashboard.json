@@ -1,0 +1,241 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "Invocations", "FunctionName", "voice-assistant-ai-chatbot-prod"],
+          [".", "Errors", ".", "."],
+          [".", "Duration", ".", "."],
+          [".", "Throttles", ".", "."]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Lambda Chatbot Metrics",
+        "period": 300,
+        "stat": "Sum",
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "Invocations", "FunctionName", "voice-assistant-ai-auth-prod"],
+          [".", "Errors", ".", "."],
+          [".", "Duration", ".", "."]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Lambda Auth Metrics",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/ApiGateway", "Count", "ApiName", "voice-assistant-ai-prod-api"],
+          [".", "4XXError", ".", "."],
+          [".", "5XXError", ".", "."],
+          [".", "Latency", ".", "."]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "API Gateway Metrics",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "voice-assistant-ai-prod-conversations"],
+          [".", "ConsumedWriteCapacityUnits", ".", "."],
+          [".", "ThrottledRequests", ".", "."],
+          [".", "SuccessfulRequestLatency", ".", ".", "Operation", "Query"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "DynamoDB Metrics",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 12,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["VoiceAssistantAI", "TextMessageProcessed"],
+          [".", "VoiceMessageProcessed"],
+          [".", "AlexaRequestProcessed"],
+          [".", "UserAuthenticated"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Custom Business Metrics",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 12,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["VoiceAssistantAI", "TextMessageError"],
+          [".", "VoiceMessageError"],
+          [".", "AlexaRequestError"],
+          [".", "AuthenticationError"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Error Metrics",
+        "period": 300,
+        "stat": "Sum",
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 12,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["VoiceAssistantAI", "SystemHealth"]
+        ],
+        "view": "singleValue",
+        "region": "us-east-1",
+        "title": "System Health Status",
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "log",
+      "x": 0,
+      "y": 18,
+      "width": 24,
+      "height": 6,
+      "properties": {
+        "query": "SOURCE '/aws/lambda/voice-assistant-ai-chatbot-prod'\n| fields @timestamp, @message\n| filter @message like /ERROR/\n| sort @timestamp desc\n| limit 20",
+        "region": "us-east-1",
+        "title": "Recent Errors",
+        "view": "table"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 24,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/S3", "BucketSizeBytes", "BucketName", "voice-assistant-ai-prod-files", "StorageType", "StandardStorage"],
+          [".", "NumberOfObjects", ".", ".", ".", "AllStorageTypes"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "S3 Storage Metrics",
+        "period": 86400,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 24,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Cognito", "SignInSuccesses", "UserPool", "voice-assistant-ai-prod"],
+          [".", "SignInThrottles", ".", "."],
+          [".", "SignUpSuccesses", ".", "."],
+          [".", "SignUpThrottles", ".", "."]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Cognito Authentication Metrics",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 30,
+      "width": 24,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", "voice-assistant-ai-chatbot-prod"],
+          [".", ".", ".", "voice-assistant-ai-auth-prod"],
+          [".", ".", ".", "voice-assistant-ai-monitoring-prod"]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
+        "title": "Lambda Concurrent Executions",
+        "period": 300,
+        "stat": "Maximum"
+      }
+    }
+  ],
+  "annotations": {
+    "horizontal": [
+      {
+        "label": "Lambda Error Rate Threshold",
+        "value": 5
+      },
+      {
+        "label": "API Gateway 5XX Threshold",
+        "value": 10
+      }
+    ]
+  }
+}

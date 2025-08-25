@@ -1,0 +1,76 @@
+{
+  "songs": [
+    {
+      "id": "1",
+      "title": "Space Ambient",
+      "artist": "AI Music",
+      "genre": "Ambient",
+      "duration": "4:30",
+      "file": "space-ambient.mp3",
+      "url": "https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3"
+    },
+    {
+      "id": "2",
+      "title": "Cosmic Journey",
+      "artist": "AI Music",
+      "genre": "Electronic",
+      "duration": "5:15",
+      "file": "cosmic-journey.mp3",
+      "url": "https://file-examples.com/storage/fe68c1b7c1a9fd42b4c2bb7/2017/11/file_example_MP3_700KB.mp3"
+    },
+    {
+      "id": "3",
+      "title": "Stellar Dreams",
+      "artist": "AI Music",
+      "genre": "Cinematic",
+      "duration": "6:45",
+      "file": "stellar-dreams.mp3",
+      "url": "https://file-examples.com/storage/fe68c1b7c1a9fd42b4c2bb7/2017/11/file_example_MP3_1MG.mp3"
+    },
+    {
+      "id": "4",
+      "title": "Galactic Waves",
+      "artist": "AI Music",
+      "genre": "Ambient",
+      "duration": "4:20",
+      "file": "galactic-waves.mp3",
+      "url": "https://file-examples.com/storage/fe68c1b7c1a9fd42b4c2bb7/2017/11/file_example_MP3_2MG.mp3"
+    },
+    {
+      "id": "5",
+      "title": "Interstellar Theme",
+      "artist": "AI Music",
+      "genre": "Orchestral",
+      "duration": "7:30",
+      "file": "interstellar-theme.mp3",
+      "url": "https://www.learningcontainer.com/wp-content/uploads/2020/02/Kalimba.mp3"
+    },
+    {
+      "id": "6",
+      "title": "Future Bass",
+      "artist": "AI Music",
+      "genre": "Electronic",
+      "duration": "3:45",
+      "file": "future-bass.mp3",
+      "url": "https://file-examples.com/storage/fe68c1b7c1a9fd42b4c2bb7/2017/11/file_example_MP3_700KB.mp3"
+    },
+    {
+      "id": "7",
+      "title": "Chill Vibes",
+      "artist": "AI Music",
+      "genre": "Chill",
+      "duration": "4:10",
+      "file": "chill-vibes.mp3",
+      "url": "https://file-examples.com/storage/fe68c1b7c1a9fd42b4c2bb7/2017/11/file_example_MP3_1MG.mp3"
+    },
+    {
+      "id": "8",
+      "title": "Synthwave Night",
+      "artist": "AI Music",
+      "genre": "Synthwave",
+      "duration": "5:00",
+      "file": "synthwave-night.mp3",
+      "url": "https://file-examples.com/storage/fe68c1b7c1a9fd42b4c2bb7/2017/11/file_example_MP3_2MG.mp3"
+    }
+  ]
+}

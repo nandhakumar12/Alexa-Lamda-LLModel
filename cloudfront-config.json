@@ -1,0 +1,35 @@
+{
+  "CallerReference": "voice-assistant-ai-2025",
+  "Comment": "Voice Assistant AI Production Distribution with HTTPS",
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "S3-voice-assistant-ai-production-frontend",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "MinTTL": 0,
+    "ForwardedValues": {
+      "QueryString": false,
+      "Cookies": {
+        "Forward": "none"
+      }
+    },
+    "TrustedSigners": {
+      "Enabled": false,
+      "Quantity": 0
+    }
+  },
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "S3-voice-assistant-ai-production-frontend",
+        "DomainName": "voice-assistant-ai-production-frontend.s3-website-us-east-1.amazonaws.com",
+        "CustomOriginConfig": {
+          "HTTPPort": 80,
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "http-only"
+        }
+      }
+    ]
+  },
+  "Enabled": true,
+  "DefaultRootObject": "index.html"
+}

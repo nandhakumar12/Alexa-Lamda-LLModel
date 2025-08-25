@@ -1,0 +1,175 @@
+version: 0.2
+
+# CodeBuild specification for Amazon Lex bot deployment
+# This buildspec handles Lex bot creation, updates, and configuration
+
+env:
+  variables:
+    PYTHON_VERSION: "3.9"
+    PROJECT_NAME: "voice-assistant-ai"
+  parameter-store:
+    AWS_ACCOUNT_ID: "/voice-assistant/aws-account-id"
+    LEX_BOT_ROLE_ARN: "/voice-assistant/lex-bot-role-arn"
+    LAMBDA_FULFILLMENT_ARN: "/voice-assistant/lambda-fulfillment-arn"
+  secrets-manager:
+    LEX_CONFIG: "voice-assistant/lex-config:all"
+
+phases:
+  install:
+    runtime-versions:
+      python: $PYTHON_VERSION
+    commands:
+      - echo "Installing dependencies for Lex deployment..."
+      - pip install --upgrade pip
+      - pip install boto3 pyyaml jinja2 click
+
+  pre_build:
+    commands:
+      - echo "Pre-build phase started on `date`"
+      - echo "Setting up environment variables..."
+      - export ENVIRONMENT=${ENVIRONMENT:-dev}
+      - export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - export BOT_NAME="${PROJECT_NAME}-${ENVIRONMENT}-bot"
+      - export BOT_ALIAS_NAME="${ENVIRONMENT}"
+      
+      - echo "Validating Lex bot configuration..."
+      - python pipeline/scripts/validate_lex_config.py --environment $ENVIRONMENT
+      
+      - echo "Checking Lambda function availability..."
+      - aws lambda get-function --function-name "${PROJECT_NAME}-${ENVIRONMENT}-chatbot" --region $AWS_DEFAULT_REGION
+
+  build:
+    commands:
+      - echo "Build phase started on `date`"
+      
+      - echo "Creating Lex bot configuration..."
+      - |
+        cat > lex-bot-config.json << EOF
+        {
+          "botName": "$BOT_NAME",
+          "description": "Voice Assistant AI bot for $ENVIRONMENT environment",
+          "roleArn": "$LEX_BOT_ROLE_ARN",
+          "dataPrivacy": {
+            "childDirected": false
+          },
+          "idleSessionTTLInSeconds": 300,
+          "botTags": {
+            "Project": "$PROJECT_NAME",
+            "Environment": "$ENVIRONMENT",
+            "ManagedBy": "CodeBuild"
+          },
+          "testBotAliasTags": {
+            "Project": "$PROJECT_NAME",
+            "Environment": "$ENVIRONMENT",
+            "Type": "TestAlias"
+          }
+        }
+        EOF
+      
+      - echo "Creating bot locale configuration..."
+      - |
+        cat > lex-locale-config.json << EOF
+        {
+          "localeId": "en_US",
+          "description": "English (US) locale for Voice Assistant AI",
+          "nluIntentConfidenceThreshold": 0.40,
+          "voiceSettings": {
+            "voiceId": "Joanna",
+            "engine": "neural"
+          }
+        }
+        EOF
+      
+      - echo "Creating intents configuration..."
+      - python pipeline/scripts/generate_lex_intents.py --output-file lex-intents.json --environment $ENVIRONMENT
+      
+      - echo "Creating slot types configuration..."
+      - python pipeline/scripts/generate_lex_slot_types.py --output-file lex-slot-types.json --environment $ENVIRONMENT
+      
+      - echo "Deploying Lex bot..."
+      - python pipeline/scripts/deploy_lex.py \
+          --bot-config lex-bot-config.json \
+          --locale-config lex-locale-config.json \
+          --intents-config lex-intents.json \
+          --slot-types-config lex-slot-types.json \
+          --environment $ENVIRONMENT \
+          --lambda-arn $LAMBDA_FULFILLMENT_ARN
+      
+      - echo "Waiting for bot to be available..."
+      - python pipeline/scripts/wait_for_lex_bot.py --bot-name $BOT_NAME --timeout 600
+      
+      - echo "Creating bot alias..."
+      - python pipeline/scripts/create_lex_alias.py \
+          --bot-name $BOT_NAME \
+          --alias-name $BOT_ALIAS_NAME \
+          --environment $ENVIRONMENT
+      
+      - echo "Testing bot functionality..."
+      - python pipeline/scripts/test_lex_bot.py \
+          --bot-name $BOT_NAME \
+          --alias-name $BOT_ALIAS_NAME \
+          --test-cases pipeline/test-cases/lex-test-cases.json
+
+  post_build:
+    commands:
+      - echo "Post-build phase started on `date`"
+      
+      - echo "Retrieving bot information..."
+      - |
+        BOT_ID=$(aws lexv2-models describe-bot --bot-id $BOT_NAME --query 'botId' --output text)
+        BOT_VERSION=$(aws lexv2-models list-bot-versions --bot-id $BOT_ID --query 'botVersionSummaries[?botStatus==`Available`] | [0].botVersion' --output text)
+        ALIAS_ID=$(aws lexv2-models describe-bot-alias --bot-id $BOT_ID --bot-alias-id $BOT_ALIAS_NAME --query 'botAliasId' --output text)
+        
+        echo "Bot ID: $BOT_ID"
+        echo "Bot Version: $BOT_VERSION"
+        echo "Alias ID: $ALIAS_ID"
+      
+      - echo "Updating parameter store with bot information..."
+      - aws ssm put-parameter --name "/voice-assistant/lex-bot-id" --value "$BOT_ID" --type "String" --overwrite
+      - aws ssm put-parameter --name "/voice-assistant/lex-bot-version" --value "$BOT_VERSION" --type "String" --overwrite
+      - aws ssm put-parameter --name "/voice-assistant/lex-alias-id" --value "$ALIAS_ID" --type "String" --overwrite
+      
+      - echo "Generating deployment report..."
+      - |
+        cat > lex-deployment-report.json << EOF
+        {
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "environment": "$ENVIRONMENT",
+          "bot_name": "$BOT_NAME",
+          "bot_id": "$BOT_ID",
+          "bot_version": "$BOT_VERSION",
+          "alias_name": "$BOT_ALIAS_NAME",
+          "alias_id": "$ALIAS_ID",
+          "lambda_arn": "$LAMBDA_FULFILLMENT_ARN",
+          "commit": "$CODEBUILD_RESOLVED_SOURCE_VERSION",
+          "build_id": "$CODEBUILD_BUILD_ID",
+          "status": "success"
+        }
+        EOF
+      
+      - echo "Running post-deployment validation..."
+      - python pipeline/scripts/validate_lex_deployment.py \
+          --bot-id $BOT_ID \
+          --alias-id $ALIAS_ID \
+          --environment $ENVIRONMENT
+      
+      - echo "Lex bot deployment completed successfully on `date`"
+
+artifacts:
+  files:
+    - 'lex-deployment-report.json'
+    - 'lex-bot-config.json'
+    - 'lex-locale-config.json'
+    - 'lex-intents.json'
+    - 'lex-slot-types.json'
+  name: lex-deployment-artifacts
+
+reports:
+  lex-test-report:
+    files:
+      - 'lex-test-results.xml'
+    file-format: 'JUNITXML'
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'

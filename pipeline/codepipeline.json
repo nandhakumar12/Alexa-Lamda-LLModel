@@ -1,0 +1,410 @@
+{
+  "pipeline": {
+    "name": "voice-assistant-ai-pipeline",
+    "roleArn": "arn:aws:iam::{ACCOUNT_ID}:role/service-role/AWSCodePipelineServiceRole-voice-assistant-ai",
+    "artifactStore": {
+      "type": "S3",
+      "location": "voice-assistant-ai-pipeline-artifacts-{ACCOUNT_ID}-{REGION}"
+    },
+    "stages": [
+      {
+        "name": "Source",
+        "actions": [
+          {
+            "name": "SourceAction",
+            "actionTypeId": {
+              "category": "Source",
+              "owner": "ThirdParty",
+              "provider": "GitHub",
+              "version": "1"
+            },
+            "configuration": {
+              "Owner": "{GITHUB_OWNER}",
+              "Repo": "{GITHUB_REPO}",
+              "Branch": "main",
+              "OAuthToken": "{{resolve:secretsmanager:github-token:SecretString:token}}"
+            },
+            "outputArtifacts": [
+              {
+                "name": "SourceOutput"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Build",
+        "actions": [
+          {
+            "name": "TestAndLint",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-test-lint"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "TestOutput"
+              }
+            ],
+            "runOrder": 1
+          },
+          {
+            "name": "SecurityScan",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-security-scan"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "SecurityOutput"
+              }
+            ],
+            "runOrder": 1
+          },
+          {
+            "name": "BuildApplication",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-build"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "BuildOutput"
+              }
+            ],
+            "runOrder": 2
+          }
+        ]
+      },
+      {
+        "name": "DeployDev",
+        "actions": [
+          {
+            "name": "DeployInfrastructure",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-deploy-infra",
+              "EnvironmentVariables": "[{\"name\":\"ENVIRONMENT\",\"value\":\"dev\"}]"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "InfraOutput"
+              }
+            ],
+            "runOrder": 1
+          },
+          {
+            "name": "DeployApplication",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-deploy-app",
+              "EnvironmentVariables": "[{\"name\":\"ENVIRONMENT\",\"value\":\"dev\"}]"
+            },
+            "inputArtifacts": [
+              {
+                "name": "BuildOutput"
+              },
+              {
+                "name": "InfraOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "DevDeployOutput"
+              }
+            ],
+            "runOrder": 2
+          },
+          {
+            "name": "IntegrationTests",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-integration-tests",
+              "EnvironmentVariables": "[{\"name\":\"ENVIRONMENT\",\"value\":\"dev\"}]"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              },
+              {
+                "name": "DevDeployOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "IntegrationTestOutput"
+              }
+            ],
+            "runOrder": 3
+          }
+        ]
+      },
+      {
+        "name": "ApprovalForStaging",
+        "actions": [
+          {
+            "name": "ManualApproval",
+            "actionTypeId": {
+              "category": "Approval",
+              "owner": "AWS",
+              "provider": "Manual",
+              "version": "1"
+            },
+            "configuration": {
+              "NotificationArn": "arn:aws:sns:{REGION}:{ACCOUNT_ID}:voice-assistant-ai-approvals",
+              "CustomData": "Please review the dev deployment and approve for staging deployment. Check:\n1. All tests passed\n2. Security scan results\n3. Performance metrics\n4. Functionality verification"
+            }
+          }
+        ]
+      },
+      {
+        "name": "DeployStaging",
+        "actions": [
+          {
+            "name": "DeployInfrastructure",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-deploy-infra",
+              "EnvironmentVariables": "[{\"name\":\"ENVIRONMENT\",\"value\":\"staging\"}]"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "StagingInfraOutput"
+              }
+            ],
+            "runOrder": 1
+          },
+          {
+            "name": "DeployApplication",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-deploy-app",
+              "EnvironmentVariables": "[{\"name\":\"ENVIRONMENT\",\"value\":\"staging\"}]"
+            },
+            "inputArtifacts": [
+              {
+                "name": "BuildOutput"
+              },
+              {
+                "name": "StagingInfraOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "StagingDeployOutput"
+              }
+            ],
+            "runOrder": 2
+          },
+          {
+            "name": "SmokeTests",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-smoke-tests",
+              "EnvironmentVariables": "[{\"name\":\"ENVIRONMENT\",\"value\":\"staging\"}]"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              },
+              {
+                "name": "StagingDeployOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "SmokeTestOutput"
+              }
+            ],
+            "runOrder": 3
+          }
+        ]
+      },
+      {
+        "name": "ApprovalForProduction",
+        "actions": [
+          {
+            "name": "ManualApproval",
+            "actionTypeId": {
+              "category": "Approval",
+              "owner": "AWS",
+              "provider": "Manual",
+              "version": "1"
+            },
+            "configuration": {
+              "NotificationArn": "arn:aws:sns:{REGION}:{ACCOUNT_ID}:voice-assistant-ai-approvals",
+              "CustomData": "PRODUCTION DEPLOYMENT APPROVAL REQUIRED\n\nPlease verify:\n1. Staging deployment successful\n2. All smoke tests passed\n3. Performance benchmarks met\n4. Security review completed\n5. Change management approval obtained\n\nThis will deploy to PRODUCTION environment."
+            }
+          }
+        ]
+      },
+      {
+        "name": "DeployProduction",
+        "actions": [
+          {
+            "name": "DeployInfrastructure",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-deploy-infra",
+              "EnvironmentVariables": "[{\"name\":\"ENVIRONMENT\",\"value\":\"prod\"}]"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "ProdInfraOutput"
+              }
+            ],
+            "runOrder": 1
+          },
+          {
+            "name": "BlueGreenDeploy",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-blue-green-deploy",
+              "EnvironmentVariables": "[{\"name\":\"ENVIRONMENT\",\"value\":\"prod\"}]"
+            },
+            "inputArtifacts": [
+              {
+                "name": "BuildOutput"
+              },
+              {
+                "name": "ProdInfraOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "ProdDeployOutput"
+              }
+            ],
+            "runOrder": 2
+          },
+          {
+            "name": "ProductionTests",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "configuration": {
+              "ProjectName": "voice-assistant-ai-production-tests",
+              "EnvironmentVariables": "[{\"name\":\"ENVIRONMENT\",\"value\":\"prod\"}]"
+            },
+            "inputArtifacts": [
+              {
+                "name": "SourceOutput"
+              },
+              {
+                "name": "ProdDeployOutput"
+              }
+            ],
+            "outputArtifacts": [
+              {
+                "name": "ProdTestOutput"
+              }
+            ],
+            "runOrder": 3
+          }
+        ]
+      }
+    ]
+  },
+  "tags": [
+    {
+      "key": "Project",
+      "value": "voice-assistant-ai"
+    },
+    {
+      "key": "Environment",
+      "value": "pipeline"
+    },
+    {
+      "key": "ManagedBy",
+      "value": "CodePipeline"
+    }
+  ]
+}
