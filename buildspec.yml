@@ -1,34 +1,16 @@
 version: 0.2
-
 phases:
   install:
     runtime-versions:
       python: 3.9
-      nodejs: 18
     commands:
-      - echo "Installing dependencies"
-      - pip install --upgrade pip
-      - pip install awscli boto3
-
-  pre_build:
-    commands:
-      - echo "Starting pre-build phase"
-      - echo "Environment: $ENVIRONMENT"
-      - echo "AWS Region: $AWS_DEFAULT_REGION"
-
+      - echo "Install complete"
   build:
     commands:
-      - echo "Starting build phase"
-      - echo "Current directory: $CODEBUILD_SRC_DIR"
-      - ls -la
-      - echo "Build phase complete"
-
+      - echo "Build complete"
   post_build:
     commands:
-      - echo "Build completed successfully"
-      - echo "Post-build phase complete"
-
+      - echo "Post build complete"
 artifacts:
   files:
     - '**/*'
-  discard-paths: no
