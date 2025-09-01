@@ -1,46 +1,43 @@
 # Variables for CI/CD Module
 
-variable "region" {
-  description = "AWS region where resources will be created"
-  type        = string
-  default     = "us-east-1"
-}
-
 variable "name_prefix" {
   description = "Prefix for resource names"
   type        = string
-}
-
-variable "environment" {
-  description = "Environment name (dev, staging, prod)"
-  type        = string
+  default     = "voice-ai"
 }
 
 variable "suffix" {
-  description = "Random suffix for unique resource naming"
+  description = "Suffix for resource names"
   type        = string
+  default     = "prod"
 }
 
-variable "tags" {
-  description = "Tags to apply to all resources"
-  type        = map(string)
-  default     = {}
+variable "environment" {
+  description = "Environment name"
+  type        = string
+  default     = "production"
+}
+
+variable "region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
 }
 
 variable "github_owner" {
   description = "GitHub repository owner"
   type        = string
-  default     = ""
+  default     = "nandhakumar12"
 }
 
 variable "github_repo" {
   description = "GitHub repository name"
   type        = string
-  default     = ""
+  default     = "Alexa-Lamda-LLModel"
 }
 
 variable "github_branch" {
-  description = "GitHub branch to track"
+  description = "GitHub branch to monitor"
   type        = string
   default     = "main"
 }
@@ -52,9 +49,19 @@ variable "notification_email" {
 }
 
 variable "enable_manual_approval" {
-  description = "Enable manual approval for production deployments"
+  description = "Enable manual approval before production deployment"
   type        = bool
   default     = true
+}
+
+variable "tags" {
+  description = "Tags to apply to resources"
+  type        = map(string)
+  default = {
+    Environment = "production"
+    Project     = "voice-assistant-ai"
+    ManagedBy   = "terraform"
+  }
 }
 
 variable "slack_webhook_url" {

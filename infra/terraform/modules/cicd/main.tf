@@ -1,121 +1,114 @@
-#############################
-# CI/CD Pipeline with GitHub
-#############################
-
-provider "aws" {
-  region = var.region
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
 }
 
-#####################################
-# Random suffix for unique S3 bucket
-#####################################
-resource "random_id" "suffix" {
-  byte_length = 4
-}
-
+# S3 Bucket for Pipeline Artifacts
 resource "aws_s3_bucket" "pipeline_artifacts" {
-  bucket = "voice-ai-pipeline-artifacts-${random_id.suffix.hex}"
+  bucket = "${var.name_prefix}-pipeline-artifacts-${var.suffix}"
+  tags   = var.tags
 }
 
-#####################################
-# SNS Topic for Notifications
-#####################################
-resource "aws_sns_topic" "pipeline_notifications" {
-  name = "voice-ai-pipeline-notifications"
+resource "aws_s3_bucket_versioning" "pipeline_artifacts" {
+  bucket = aws_s3_bucket.pipeline_artifacts.id
+  versioning_configuration {
+    status = "Enabled"
+  }
 }
 
-#####################################
-# CodeStar GitHub Connection
-#####################################
-resource "aws_codestarconnections_connection" "github" {
-  name          = "github-connection"
-  provider_type = "GitHub"
+resource "aws_s3_bucket_server_side_encryption_configuration" "pipeline_artifacts" {
+  bucket = aws_s3_bucket.pipeline_artifacts.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
 }
 
-#####################################
-# IAM Roles
-#####################################
-resource "aws_iam_role" "codepipeline_role" {
-  name = "Voice-Ai-codepipeline-role"
-
+# CodeBuild Service Role
+resource "aws_iam_role" "codebuild_role" {
+  name = "${var.name_prefix}-codebuild-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Action    = "sts:AssumeRole"
-        Effect    = "Allow"
-        Principal = {
-          Service = "codepipeline.amazonaws.com"
-        }
-      },
-      {
-        Action    = "sts:AssumeRole"
-        Effect    = "Allow"
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
         Principal = {
           Service = "codebuild.amazonaws.com"
-        }
-      },
-      {
-        Action    = "sts:AssumeRole"
-        Effect    = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
         }
       }
     ]
   })
+  tags = var.tags
 }
 
-resource "aws_iam_role_policy" "codepipeline_policy" {
-  role = aws_iam_role.codepipeline_role.id
-
+resource "aws_iam_role_policy" "codebuild_policy" {
+  role = aws_iam_role.codebuild_role.name
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = [
-          "s3:*",
-          "sns:*",
-          "codebuild:*",
-          "codestar-connections:*",
-          "lambda:*",
+        Effect = "Allow"
+        Action = [
           "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents"
+          "logs:PutLogEvents",
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:PutObject",
+          "s3:GetBucketVersioning",
+          "lambda:UpdateFunctionCode",
+          "lambda:UpdateFunctionConfiguration",
+          "lambda:GetFunction",
+          "lambda:ListFunctions",
+          "apigateway:*",
+          "dynamodb:*",
+          "cognito-idp:*",
+          "lex:*",
+          "polly:*",
+          "bedrock:*",
+          "secretsmanager:GetSecretValue",
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:GetParametersByPath",
+          "cloudformation:*",
+          "iam:PassRole",
+          "iam:GetRole",
+          "iam:CreateRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "cloudfront:CreateInvalidation",
+          "cloudfront:GetDistribution",
+          "cloudfront:ListDistributions"
         ]
         Resource = "*"
-      },
-      {
-        Effect   = "Allow"
-        Action   = [
-          "codestar-connections:UseConnection"
-        ]
-        Resource = [
-          aws_codestarconnections_connection.github.arn
-        ]
       }
     ]
   })
 }
 
-#####################################
-# CodeBuild Projects (example)
-#####################################
-resource "aws_codebuild_project" "build_project" {
-  name          = "voice-ai-build"
-  service_role  = aws_iam_role.codepipeline_role.arn
-  build_timeout = 10
+# CodeBuild Projects
+resource "aws_codebuild_project" "test_and_lint" {
+  name        = "${var.name_prefix}-test-lint"
+  description = "Test and lint code for voice assistant"
+  service_role = aws_iam_role.codebuild_role.arn
 
   artifacts {
     type = "CODEPIPELINE"
   }
 
   environment {
-    compute_type                = "BUILD_GENERAL1_SMALL"
-    image                       = "aws/codebuild/standard:5.0"
+    compute_type                = "BUILD_GENERAL1_MEDIUM"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
     type                        = "LINUX_CONTAINER"
-    privileged_mode             = true
+    image_pull_credentials_type = "CODEBUILD"
 
     environment_variable {
       name  = "ENVIRONMENT"
@@ -125,63 +118,290 @@ resource "aws_codebuild_project" "build_project" {
 
   source {
     type      = "CODEPIPELINE"
+    buildspec = "buildspec-test.yml"
+  }
+
+  tags = var.tags
+}
+
+resource "aws_codebuild_project" "security_scan" {
+  name        = "${var.name_prefix}-security-scan"
+  description = "Security scanning for voice assistant"
+  service_role = aws_iam_role.codebuild_role.arn
+
+  artifacts {
+    type = "CODEPIPELINE"
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_MEDIUM"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+    type                        = "LINUX_CONTAINER"
+    image_pull_credentials_type = "CODEBUILD"
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "buildspec-security.yml"
+  }
+
+  tags = var.tags
+}
+
+resource "aws_codebuild_project" "build_and_package" {
+  name        = "${var.name_prefix}-build-package"
+  description = "Build and package voice assistant components"
+  service_role = aws_iam_role.codebuild_role.arn
+
+  artifacts {
+    type = "CODEPIPELINE"
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_MEDIUM"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+    type                        = "LINUX_CONTAINER"
+    image_pull_credentials_type = "CODEBUILD"
+
+    environment_variable {
+      name  = "ENVIRONMENT"
+      value = var.environment
+    }
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "buildspec.yml"
+  }
+
+  tags = var.tags
+}
+
+resource "aws_codebuild_project" "deploy_dev" {
+  name        = "${var.name_prefix}-deploy-dev"
+  description = "Deploy to development environment"
+  service_role = aws_iam_role.codebuild_role.arn
+
+  artifacts {
+    type = "CODEPIPELINE"
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_MEDIUM"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+    type                        = "LINUX_CONTAINER"
+    image_pull_credentials_type = "CODEBUILD"
+
+    environment_variable {
+      name  = "ENVIRONMENT"
+      value = "dev"
+    }
+  }
+
+  source {
+    type      = "CODEPIPELINE"
     buildspec = "buildspec-deploy.yml"
   }
+
+  tags = var.tags
 }
 
-#####################################
-# Lambda Example (Placeholder)
-#####################################
-# Note: This Lambda is created as an example for the pipeline
-# In a real deployment, the Lambda would be deployed by the pipeline itself
-data "archive_file" "dummy_lambda" {
-  type        = "zip"
-  output_path = "${path.module}/dummy_lambda.zip"
-  
-  source {
-    content  = "def handler(event, context): return {'statusCode': 200, 'body': 'Hello from Lambda'}"
-    filename = "index.py"
+resource "aws_codebuild_project" "deploy_staging" {
+  name        = "${var.name_prefix}-deploy-staging"
+  description = "Deploy to staging environment"
+  service_role = aws_iam_role.codebuild_role.arn
+
+  artifacts {
+    type = "CODEPIPELINE"
   }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_MEDIUM"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+    type                        = "LINUX_CONTAINER"
+    image_pull_credentials_type = "CODEBUILD"
+
+    environment_variable {
+      name  = "ENVIRONMENT"
+      value = "staging"
+    }
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "buildspec-deploy.yml"
+  }
+
+  tags = var.tags
 }
 
-resource "aws_lambda_function" "backend_lambda" {
-  function_name = "${var.name_prefix}-backend-lambda"
-  role          = aws_iam_role.codepipeline_role.arn
-  handler       = "index.handler"
-  runtime       = "python3.9"
+resource "aws_codebuild_project" "deploy_prod" {
+  name        = "${var.name_prefix}-deploy-prod"
+  description = "Deploy to production environment"
+  service_role = aws_iam_role.codebuild_role.arn
 
-  filename         = data.archive_file.dummy_lambda.output_path
-  source_code_hash = data.archive_file.dummy_lambda.output_base64sha256
+  artifacts {
+    type = "CODEPIPELINE"
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_MEDIUM"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+    type                        = "LINUX_CONTAINER"
+    image_pull_credentials_type = "CODEBUILD"
+
+    environment_variable {
+      name  = "ENVIRONMENT"
+      value = "prod"
+    }
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "buildspec-deploy.yml"
+  }
+
+  tags = var.tags
 }
 
-#####################################
+# CodePipeline Service Role
+resource "aws_iam_role" "codepipeline_role" {
+  name = "${var.name_prefix}-codepipeline-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "codepipeline.amazonaws.com"
+        }
+      }
+    ]
+  })
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy" "codepipeline_policy" {
+  role = aws_iam_role.codepipeline_role.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetBucketVersioning",
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:PutObject",
+          "codebuild:BatchGetBuilds",
+          "codebuild:StartBuild",
+          "codecommit:CancelUploadArchive",
+          "codecommit:GetBranch",
+          "codecommit:GetCommit",
+          "codecommit:GetRepository",
+          "codecommit:ListBranches",
+          "codecommit:ListRepositories",
+          "codecommit:PutFile",
+          "codecommit:GetUploadArchiveStatus",
+          "codecommit:UploadArchive",
+          "codedeploy:CreateDeployment",
+          "codedeploy:GetApplication",
+          "codedeploy:GetApplicationRevision",
+          "codedeploy:GetDeployment",
+          "codedeploy:GetDeploymentConfig",
+          "codedeploy:RegisterApplicationRevision",
+          "sns:Publish",
+          "codestar-connections:UseConnection"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# SNS Topic for Pipeline Notifications
+resource "aws_sns_topic" "pipeline_notifications" {
+  name = "${var.name_prefix}-pipeline-notifications"
+  tags = var.tags
+}
+
+resource "aws_sns_topic_subscription" "email_notification" {
+  count     = var.notification_email != "" ? 1 : 0
+  topic_arn = aws_sns_topic.pipeline_notifications.arn
+  protocol  = "email"
+  endpoint  = var.notification_email
+}
+
+# CodeStar Connection for GitHub
+resource "aws_codestarconnections_connection" "github" {
+  name          = "${var.name_prefix}-github-connection"
+  provider_type = "GitHub"
+  tags          = var.tags
+}
+
 # CodePipeline
-#####################################
-resource "aws_codepipeline" "voice_ai_pipeline" {
-  name     = "voice-ai-pipeline"
+resource "aws_codepipeline" "main" {
+  name     = "${var.name_prefix}-pipeline"
   role_arn = aws_iam_role.codepipeline_role.arn
 
   artifact_store {
-    type     = "S3"
     location = aws_s3_bucket.pipeline_artifacts.bucket
+    type     = "S3"
   }
 
   stage {
     name = "Source"
 
     action {
-      name             = "GitHub_Source"
+      name             = "Source"
       category         = "Source"
-      owner            = "AWS"
-      provider         = "CodeStarSourceConnection"
+      owner            = "ThirdParty"
+      provider         = "GitHub"
       version          = "1"
       output_artifacts = ["source_output"]
 
-              configuration = {
-          ConnectionArn    = aws_codestarconnections_connection.github.arn
-          FullRepositoryId = "nandhakumar12/Alexa-Lamda-LLModel" # Updated with your actual repo
-          BranchName       = "main"
-        }
+      configuration = {
+        Owner                = var.github_owner
+        Repo                 = var.github_repo
+        Branch               = var.github_branch
+        ConnectionArn        = aws_codestarconnections_connection.github.arn
+        PollForSourceChanges = false
+      }
+    }
+  }
+
+  stage {
+    name = "Test"
+
+    action {
+      name             = "TestAndLint"
+      category         = "Build"
+      owner            = "AWS"
+      provider         = "CodeBuild"
+      input_artifacts  = ["source_output"]
+      output_artifacts = ["test_output"]
+      version          = "1"
+      run_order        = 1
+
+      configuration = {
+        ProjectName = aws_codebuild_project.test_and_lint.name
+      }
+    }
+
+    action {
+      name             = "SecurityScan"
+      category         = "Build"
+      owner            = "AWS"
+      provider         = "CodeBuild"
+      input_artifacts  = ["source_output"]
+      output_artifacts = ["security_output"]
+      version          = "1"
+      run_order        = 1
+
+      configuration = {
+        ProjectName = aws_codebuild_project.security_scan.name
+      }
     }
   }
 
@@ -189,67 +409,90 @@ resource "aws_codepipeline" "voice_ai_pipeline" {
     name = "Build"
 
     action {
-      name             = "Build"
+      name             = "BuildAndPackage"
       category         = "Build"
       owner            = "AWS"
       provider         = "CodeBuild"
-      version          = "1"
       input_artifacts  = ["source_output"]
       output_artifacts = ["build_output"]
+      version          = "1"
 
       configuration = {
-        ProjectName = aws_codebuild_project.build_project.name
+        ProjectName = aws_codebuild_project.build_and_package.name
       }
     }
   }
 
   stage {
-    name = "Deploy"
+    name = "DeployDev"
 
     action {
-      name            = "DeployLambda"
-      category        = "Invoke"
+      name            = "DeployToDev"
+      category        = "Build"
       owner           = "AWS"
-      provider        = "Lambda"
-      version         = "1"
+      provider        = "CodeBuild"
       input_artifacts = ["build_output"]
+      version         = "1"
 
       configuration = {
-        FunctionName = aws_lambda_function.backend_lambda.function_name
+        ProjectName = aws_codebuild_project.deploy_dev.name
       }
     }
   }
-}
 
-#####################################
-# Outputs
-#####################################
-output "pipeline_name" {
-  description = "Name of the CodePipeline created"
-  value       = aws_codepipeline.voice_ai_pipeline.name
-}
+  stage {
+    name = "DeployStaging"
 
-output "artifact_bucket" {
-  description = "S3 bucket for CodePipeline artifacts"
-  value       = aws_s3_bucket.pipeline_artifacts.bucket
-}
+    action {
+      name            = "DeployToStaging"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      input_artifacts = ["build_output"]
+      version         = "1"
 
-output "sns_topic_arn" {
-  description = "SNS Topic ARN for pipeline notifications"
-  value       = aws_sns_topic.pipeline_notifications.arn
-}
+      configuration = {
+        ProjectName = aws_codebuild_project.deploy_staging.name
+      }
+    }
+  }
 
-output "codebuild_project_name" {
-  description = "CodeBuild project name for build stage"
-  value       = aws_codebuild_project.build_project.name
-}
+  dynamic "stage" {
+    for_each = var.enable_manual_approval ? [1] : []
+    content {
+      name = "ManualApproval"
 
-output "lambda_function_name" {
-  description = "Deployed backend Lambda function name"
-  value       = aws_lambda_function.backend_lambda.function_name
-}
+      action {
+        name    = "ManualApprovalForProd"
+        category = "Approval"
+        owner   = "AWS"
+        provider = "Manual"
+        version = "1"
 
-output "github_connection_arn" {
-  description = "GitHub CodeStar Connection ARN"
-  value       = aws_codestarconnections_connection.github.arn
+        configuration = {
+          NotificationArn = aws_sns_topic.pipeline_notifications.arn
+          CustomData      = "Please review and approve deployment to production"
+        }
+      }
+    }
+  }
+
+  stage {
+    name = "DeployProd"
+
+    action {
+      name            = "DeployToProduction"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      input_artifacts = ["build_output"]
+      version         = "1"
+
+      configuration = {
+        ProjectName = aws_codebuild_project.deploy_prod.name
+      }
+    }
+  }
+
+  tags = var.tags
 }
