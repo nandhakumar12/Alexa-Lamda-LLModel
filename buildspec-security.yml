@@ -1,11 +1,5 @@
 version: 0.2
 
-env:
-  variables:
-    PYTHON_VERSION: "3.9"
-    NODE_VERSION: "18"
-    PROJECT_NAME: "voice-assistant-ai"
-
 phases:
   install:
     runtime-versions:
@@ -15,51 +9,38 @@ phases:
       - echo "Installing security scanning dependencies..."
       - pip install --upgrade pip
       - pip install bandit safety
-      - echo "Installation complete"
 
   pre_build:
     commands:
       - echo "Starting security pre-build phase..."
       - echo "Environment: $ENVIRONMENT"
-      - echo "AWS Region: $AWS_DEFAULT_REGION"
-      - echo "Pre-build phase complete"
 
   build:
     commands:
       - echo "Starting security scanning phase..."
-      
-      # Install Python dependencies
       - echo "Installing Python dependencies..."
       - cd backend
       - pip install -r requirements.txt
       - cd ..
-      
-      # Install Node.js dependencies
       - echo "Installing Node.js dependencies..."
       - cd frontend
       - npm ci
       - cd ..
-      
-      # Python security scanning
       - echo "Running Python security scans..."
       - cd backend
       - bandit -r . -f json -o bandit-report.json || echo "Bandit scan completed"
       - safety check --json --output safety-report.json || echo "Safety check completed"
       - cd ..
-      
-      # Node.js security scanning
       - echo "Running Node.js security scans..."
       - cd frontend
       - npm audit --audit-level=moderate --json > ../npm-audit-report.json || echo "npm audit completed"
       - cd ..
-      
       - echo "Security scanning phase complete"
 
   post_build:
     commands:
       - echo "Starting post-security phase..."
       - echo "Security scanning completed on $(date)"
-      - echo "Post-security phase complete"
 
 artifacts:
   files:

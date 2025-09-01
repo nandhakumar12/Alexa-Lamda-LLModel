@@ -58,11 +58,7 @@ resource "aws_iam_role_policy" "lex_bot" {
   })
 }
 
-# Attach AWS managed policy for Lex
-resource "aws_iam_role_policy_attachment" "lex_bot" {
-  role       = aws_iam_role.lex_bot.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonLexBotPolicy"
-}
+# Note: Lex bot permissions are handled by the inline policy above
 
 # Lex Bot
 resource "aws_lexv2models_bot" "main" {

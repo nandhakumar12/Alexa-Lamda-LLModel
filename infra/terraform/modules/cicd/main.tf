@@ -335,7 +335,7 @@ resource "aws_sns_topic_subscription" "email_notification" {
 
 # CodeStar Connection for GitHub
 resource "aws_codestarconnections_connection" "github" {
-  name          = "${var.name_prefix}-github-connection"
+  name          = "voice-ai-github-connection"
   provider_type = "GitHub"
   tags          = var.tags
 }

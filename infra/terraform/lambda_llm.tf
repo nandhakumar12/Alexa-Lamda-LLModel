@@ -44,9 +44,8 @@ resource "aws_iam_role_policy" "llm_lambda_policy" {
           "dynamodb:DeleteItem"
         ]
         Resource = [
-          aws_dynamodb_table.conversation_history.arn,
-          "${aws_dynamodb_table.conversation_history.arn}/index/*",
-          aws_dynamodb_table.user_preferences.arn
+          "arn:aws:dynamodb:us-east-1:266833219725:table/voice-assistant-ai-prod-conversations",
+          "arn:aws:dynamodb:us-east-1:266833219725:table/voice-assistant-ai-prod-conversations/index/*"
         ]
       },
       {
@@ -56,7 +55,7 @@ resource "aws_iam_role_policy" "llm_lambda_policy" {
           "ssm:GetParameters"
         ]
         Resource = [
-          aws_ssm_parameter.conversation_settings.arn
+          "arn:aws:ssm:us-east-1:266833219725:parameter/voice-assistant/*"
         ]
       },
       {
@@ -94,9 +93,8 @@ resource "aws_lambda_function" "llm_chatbot" {
 
   environment {
     variables = {
-      CONVERSATION_TABLE = aws_dynamodb_table.conversation_history.name
-      USER_PREFERENCES_TABLE = aws_dynamodb_table.user_preferences.name
-      CONVERSATION_SETTINGS_PARAM = aws_ssm_parameter.conversation_settings.name
+      CONVERSATION_TABLE = "voice-assistant-ai-prod-conversations"
+      CONVERSATION_SETTINGS_PARAM = "/voice-assistant/conversation-settings"
       AWS_REGION = "us-east-1"
     }
   }

@@ -164,24 +164,18 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc" {
 resource "aws_cloudwatch_log_group" "chatbot" {
   name              = "/aws/lambda/${var.name_prefix}-chatbot"
   retention_in_days = var.log_retention_days
-  kms_key_id        = aws_kms_key.lambda.arn
-
   tags = var.tags
 }
 
 resource "aws_cloudwatch_log_group" "auth" {
   name              = "/aws/lambda/${var.name_prefix}-auth"
   retention_in_days = var.log_retention_days
-  kms_key_id        = aws_kms_key.lambda.arn
-
   tags = var.tags
 }
 
 resource "aws_cloudwatch_log_group" "monitoring" {
   name              = "/aws/lambda/${var.name_prefix}-monitoring"
   retention_in_days = var.log_retention_days
-  kms_key_id        = aws_kms_key.lambda.arn
-
   tags = var.tags
 }
 
