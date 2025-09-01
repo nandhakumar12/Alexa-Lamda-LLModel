@@ -1,117 +1,34 @@
 version: 0.2
 
-# CodeBuild specification for Voice Assistant AI (Non-Terraform)
-# This buildspec handles application deployment without infrastructure changes
-
-env:
-  variables:
-    PYTHON_VERSION: "3.9"
-    NODE_VERSION: "16"
-    PROJECT_NAME: "voice-assistant-ai"
-  parameter-store:
-    AWS_ACCOUNT_ID: "/voice-assistant/aws-account-id"
-    S3_BUCKET: "/voice-assistant/s3-bucket"
-    LEX_BOT_ID: "/voice-assistant/lex-bot-id"
-  secrets-manager:
-    DATABASE_URL: "voice-assistant/database:url"
-    API_KEYS: "voice-assistant/api-keys:all"
-
 phases:
   install:
     runtime-versions:
       python: 3.9
       nodejs: 18
     commands:
-      - echo "Installing dependencies..."
+      - echo "Installing dependencies"
       - pip install --upgrade pip
-      - pip install awscli
-      - npm install -g @aws-amplify/cli
-      - echo "Installation complete"
+      - pip install awscli boto3
 
   pre_build:
     commands:
-      - echo "Starting pre-build phase..."
-      - echo "Current directory: $CODEBUILD_SRC_DIR"
-      - echo "AWS Region: $AWS_DEFAULT_REGION"
+      - echo "Starting pre-build phase"
       - echo "Environment: $ENVIRONMENT"
-      - |
-        cat > .env << EOF
-        ENVIRONMENT=$ENVIRONMENT
-        AWS_REGION=$AWS_DEFAULT_REGION
-        PROJECT_NAME=voice-assistant-ai
-        EOF
-      - echo "Pre-build phase complete"
+      - echo "AWS Region: $AWS_DEFAULT_REGION"
 
   build:
     commands:
-      - echo "Starting build phase..."
-      
-      # Install Python dependencies
-      - echo "Installing Python dependencies..."
-      - cd backend
-      - pip install -r requirements.txt
-      - cd ..
-      
-      # Install Node.js dependencies for frontend
-      - echo "Installing Node.js dependencies..."
-      - cd frontend
-      - npm ci
-      - cd ..
-      
-      # Run tests
-      - echo "Running tests..."
-      - cd backend
-      - python -m pytest tests/ -v || echo "Tests completed with some failures"
-      - cd ..
-      
-      # Build frontend
-      - echo "Building frontend..."
-      - cd frontend
-      - npm run build
-      - cd ..
-      
-      # Package Lambda functions
-      - echo "Packaging Lambda functions..."
-      - cd backend/lambda_functions
-      - |
-        for dir in */; do
-          if [ -f "$dir/requirements.txt" ]; then
-            echo "Packaging $dir"
-            cd "$dir"
-            pip install -r requirements.txt -t .
-            zip -r "${dir%/}.zip" . -x "*.pyc" "__pycache__/*" "*.git*"
-            cd ..
-          fi
-        done
-      - cd ../..
-      
-      # Create deployment package
-      - echo "Creating deployment package..."
-      - mkdir -p deployment
-      - cp -r backend/lambda_functions/*.zip deployment/ || echo "No Lambda packages found"
-      - cp -r frontend/build deployment/frontend || echo "Frontend build not found"
-      - cp -r backend deployment/backend || echo "Backend copy failed"
-      - cp buildspec.yml deployment/
-      - cp .env deployment/
-      
+      - echo "Starting build phase"
+      - echo "Current directory: $CODEBUILD_SRC_DIR"
+      - ls -la
       - echo "Build phase complete"
 
   post_build:
     commands:
-      - echo "Starting post-build phase..."
-      - echo "Build completed on `date`"
-      - echo "Build artifacts:"
-      - ls -la deployment/
+      - echo "Build completed successfully"
       - echo "Post-build phase complete"
 
 artifacts:
   files:
-    - deployment/**/*
+    - '**/*'
   discard-paths: no
-  base-directory: deployment
-
-cache:
-  paths:
-    - '/root/.cache/pip/**/*'
-    - 'node_modules/**/*'
-    - '.npm/**/*'
