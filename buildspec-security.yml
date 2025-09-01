@@ -6,6 +6,11 @@ phases:
       python: 3.9
       nodejs: 18
     commands:
+      - echo "CodeBuild Image: $CODEBUILD_BUILD_IMAGE"
+      - echo "Source Directory: $CODEBUILD_SRC_DIR"
+      - python --version
+      - node --version
+      - npm --version
       - echo "Installing security scanning dependencies..."
       - pip install --upgrade pip
       - pip install bandit safety
@@ -14,10 +19,14 @@ phases:
     commands:
       - echo "Starting security pre-build phase..."
       - echo "Environment: $ENVIRONMENT"
+      - echo "AWS Region: $AWS_DEFAULT_REGION"
+      - ls -la
   build:
     commands:
       - echo "Starting security scanning phase..."
       - echo "Installing Python dependencies..."
+      - echo "Checking directories..."
+      - ls -la backend/lambda_functions/ || echo "Directory not found"
       - cd backend/lambda_functions
       - pip install -r requirements.txt
       - cd ../..

@@ -6,6 +6,11 @@ phases:
       python: 3.9
       nodejs: 18
     commands:
+      - echo "CodeBuild Image: $CODEBUILD_BUILD_IMAGE"
+      - echo "Source Directory: $CODEBUILD_SRC_DIR"
+      - python --version
+      - node --version
+      - npm --version
       - echo "Installing testing dependencies..."
       - pip install --upgrade pip
       - pip install pytest pytest-cov black flake8
@@ -14,15 +19,25 @@ phases:
     commands:
       - echo "Starting test pre-build phase..."
       - echo "Environment: $ENVIRONMENT"
+      - echo "AWS Region: $AWS_DEFAULT_REGION"
+      - echo "CodeBuild Region: $AWS_REGION"
+      - ls -la
 
   build:
     commands:
       - echo "Starting testing phase..."
       - echo "Installing Python dependencies..."
+      - echo "Checking if backend/lambda_functions exists..."
+      - ls -la backend/ || echo "Backend directory not found"
+      - ls -la backend/lambda_functions/ || echo "Lambda functions directory not found"
+      - ls -la backend/lambda_functions/requirements.txt || echo "Requirements.txt not found"
       - cd backend/lambda_functions
       - pip install -r requirements.txt
       - cd ../..
       - echo "Installing Node.js dependencies..."
+      - echo "Checking if frontend directory exists..."
+      - ls -la frontend/ || echo "Frontend directory not found"
+      - ls -la frontend/package.json || echo "Package.json not found"
       - cd frontend
       - npm ci
       - cd ..
@@ -37,7 +52,7 @@ phases:
       - cd ../..
       - echo "Running frontend tests..."
       - cd frontend
-      - npm test -- --watchAll=false || echo "Some frontend tests failed"
+      - CI=true npm test -- --coverage --watchAll=false --testTimeout=10000 || echo "Some frontend tests failed"
       - cd ..
       - echo "Testing phase complete"
 

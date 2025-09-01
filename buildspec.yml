@@ -6,6 +6,11 @@ phases:
       python: 3.9
       nodejs: 18
     commands:
+      - echo "CodeBuild Image: $CODEBUILD_BUILD_IMAGE"
+      - echo "Source Directory: $CODEBUILD_SRC_DIR"
+      - python --version
+      - node --version
+      - npm --version
       - echo "Installing dependencies..."
       - pip install --upgrade pip
       - pip install awscli boto3
@@ -19,6 +24,7 @@ phases:
     commands:
       - echo "Starting build phase..."
       - echo "Installing Python dependencies..."
+      - ls -la backend/lambda_functions/ || echo "Directory not found"
       - cd backend/lambda_functions
       - pip install -r requirements.txt
       - cd ../..
