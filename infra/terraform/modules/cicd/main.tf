@@ -85,6 +85,15 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
           "logs:PutLogEvents"
         ]
         Resource = "*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = [
+          "codestar-connections:UseConnection"
+        ]
+        Resource = [
+          "arn:aws:codestar-connections:us-east-1:266833219725:connection/4e4e35a8-b0d3-4da9-af17-fb1700334afd"
+        ]
       }
     ]
   })
