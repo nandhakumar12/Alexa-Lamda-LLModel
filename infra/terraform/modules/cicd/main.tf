@@ -403,7 +403,7 @@ resource "aws_codepipeline" "main" {
         ConnectionArn        = aws_codestarconnections_connection.github.arn
         FullRepositoryId     = "nandhakumar12/Alexa-Lamda-LLModel"
         BranchName           = "main"
-        DetectChanges        = false
+        DetectChanges        = true
       }
     }
   }
