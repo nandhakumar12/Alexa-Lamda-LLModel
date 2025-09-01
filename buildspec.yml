@@ -6,8 +6,8 @@ phases:
       python: 3.9
       nodejs: 18
     commands:
-      - echo "CodeBuild Image: $CODEBUILD_BUILD_IMAGE"
-      - echo "Source Directory: $CODEBUILD_SRC_DIR"
+      - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
+      - echo "Source Directory is $CODEBUILD_SRC_DIR"
       - python --version
       - node --version
       - npm --version
@@ -18,8 +18,9 @@ phases:
   pre_build:
     commands:
       - echo "Starting pre-build phase..."
-      - echo "Current directory: $CODEBUILD_SRC_DIR"
-      - echo "Environment: $ENVIRONMENT"
+      - echo "Current directory is $CODEBUILD_SRC_DIR"
+      - echo "Environment is $ENVIRONMENT"
+
   build:
     commands:
       - echo "Starting build phase..."
@@ -41,6 +42,7 @@ phases:
       - cp -r backend/lambda_functions artifacts/backend
       - cp -r frontend/build artifacts/frontend
       - echo "Build phase complete"
+
   post_build:
     commands:
       - echo "Starting post-build phase..."

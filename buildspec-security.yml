@@ -6,8 +6,8 @@ phases:
       python: 3.9
       nodejs: 18
     commands:
-      - echo "CodeBuild Image: $CODEBUILD_BUILD_IMAGE"
-      - echo "Source Directory: $CODEBUILD_SRC_DIR"
+      - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
+      - echo "Source Directory is $CODEBUILD_SRC_DIR"
       - python --version
       - node --version
       - npm --version
@@ -18,9 +18,10 @@ phases:
   pre_build:
     commands:
       - echo "Starting security pre-build phase..."
-      - echo "Environment: $ENVIRONMENT"
-      - echo "AWS Region: $AWS_DEFAULT_REGION"
+      - echo "Environment is $ENVIRONMENT"
+      - echo "AWS Region is $AWS_DEFAULT_REGION"
       - ls -la
+
   build:
     commands:
       - echo "Starting security scanning phase..."
@@ -44,6 +45,7 @@ phases:
       - npm audit --audit-level=moderate --json > ../npm-audit-report.json || echo "npm audit completed"
       - cd ..
       - echo "Security scanning phase complete"
+
   post_build:
     commands:
       - echo "Starting post-security phase..."

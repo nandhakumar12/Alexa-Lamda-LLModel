@@ -12,9 +12,10 @@ phases:
   pre_build:
     commands:
       - echo "Starting deployment pre-build phase..."
-      - echo "Environment: $ENVIRONMENT"
-      - echo "Current directory: $CODEBUILD_SRC_DIR"
+      - echo "Environment is $ENVIRONMENT"
+      - echo "Current directory is $CODEBUILD_SRC_DIR"
       - ls -la
+
   build:
     commands:
       - echo "Starting deployment phase..."
@@ -25,11 +26,12 @@ phases:
       - echo "Updating API Gateway..."
       - echo "Invalidating CloudFront cache..."
       - echo "Deployment phase complete"
+
   post_build:
     commands:
       - echo "Starting post-deployment phase..."
       - echo "Deployment completed on $(date)"
-      - echo "Environment: $ENVIRONMENT"
+      - echo "Environment is $ENVIRONMENT"
 
 artifacts:
   files:
