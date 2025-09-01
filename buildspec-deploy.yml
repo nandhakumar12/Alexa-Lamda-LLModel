@@ -15,7 +15,6 @@ phases:
       - echo "Environment: $ENVIRONMENT"
       - echo "Current directory: $CODEBUILD_SRC_DIR"
       - ls -la
-
   build:
     commands:
       - echo "Starting deployment phase..."
@@ -26,7 +25,6 @@ phases:
       - echo "Updating API Gateway..."
       - echo "Invalidating CloudFront cache..."
       - echo "Deployment phase complete"
-
   post_build:
     commands:
       - echo "Starting post-deployment phase..."

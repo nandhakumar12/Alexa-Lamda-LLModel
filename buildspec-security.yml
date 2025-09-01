@@ -14,7 +14,6 @@ phases:
     commands:
       - echo "Starting security pre-build phase..."
       - echo "Environment: $ENVIRONMENT"
-
   build:
     commands:
       - echo "Starting security scanning phase..."
@@ -36,7 +35,6 @@ phases:
       - npm audit --audit-level=moderate --json > ../npm-audit-report.json || echo "npm audit completed"
       - cd ..
       - echo "Security scanning phase complete"
-
   post_build:
     commands:
       - echo "Starting post-security phase..."

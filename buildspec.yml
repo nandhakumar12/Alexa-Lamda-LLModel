@@ -15,7 +15,6 @@ phases:
       - echo "Starting pre-build phase..."
       - echo "Current directory: $CODEBUILD_SRC_DIR"
       - echo "Environment: $ENVIRONMENT"
-
   build:
     commands:
       - echo "Starting build phase..."
@@ -36,7 +35,6 @@ phases:
       - cp -r backend artifacts/backend
       - cp -r frontend/build artifacts/frontend
       - echo "Build phase complete"
-
   post_build:
     commands:
       - echo "Starting post-build phase..."
