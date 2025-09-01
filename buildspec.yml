@@ -31,27 +31,45 @@ phases:
       - pip install -r requirements.txt
       - cd ../..
       - echo "Installing Node.js dependencies..."
+      - echo "Checking frontend directory..."
+      - ls -la frontend/ || echo "Frontend directory not found"
+      - ls -la frontend/public/ || echo "Frontend public directory not found"
+      - ls -la frontend/src/ || echo "Frontend src directory not found"
       - cd frontend
-      - npm ci
-      - cd ..
-      - echo "Building frontend..."
-      - cd frontend
+      - echo "Installing npm dependencies..."
+      - npm ci --silent
+      - echo "Building frontend application..."
+      - echo "Setting CI environment for React build..."
+      - export CI=true
+      - export GENERATE_SOURCEMAP=false
+      - export NODE_OPTIONS="--max-old-space-size=4096"
       - npm run build
+      - echo "Checking build output..."
+      - ls -la build/ || echo "Build directory not created"
+      - ls -la build/index.html || echo "Build index.html not found"
       - cd ..
-      - echo "Creating artifacts..."
+      - echo "Creating artifacts directory..."
       - mkdir -p artifacts
+      - echo "Copying backend artifacts..."
       - cp -r backend/lambda_functions artifacts/backend
-      - cp -r frontend/build artifacts/frontend
+      - echo "Copying frontend artifacts..."
+      - cp -r frontend/build artifacts/frontend || echo "Failed to copy frontend build"
+      - echo "Verifying artifacts..."
+      - ls -la artifacts/ || echo "Artifacts directory issue"
+      - ls -la artifacts/frontend/ || echo "Frontend artifacts issue"
       - echo "Build phase complete"
 
   post_build:
     commands:
       - echo "Starting post-build phase..."
       - echo "Build completed on $(date)"
-      - ls -la artifacts/
+      - echo "Final artifacts verification..."
+      - ls -la artifacts/ || echo "No artifacts directory"
+      - ls -la artifacts/backend/ || echo "No backend artifacts"
+      - ls -la artifacts/frontend/ || echo "No frontend artifacts"
+      - echo "Post-build phase complete"
 
 artifacts:
   files:
-    - artifacts/**/*
-  discard-paths: no
+    - '**/*'
   base-directory: artifacts
