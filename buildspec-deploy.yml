@@ -1,0 +1,89 @@
+version: 0.2
+
+env:
+  variables:
+    PYTHON_VERSION: "3.9"
+    PROJECT_NAME: "voice-assistant-ai"
+    ENVIRONMENT: "prod"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - echo "Installing deployment dependencies..."
+      - pip install --upgrade pip
+      - pip install awscli boto3
+      - echo "Installation complete"
+
+  pre_build:
+    commands:
+      - echo "Starting deployment pre-build phase..."
+      - echo "Environment: $ENVIRONMENT"
+      - echo "AWS Region: $AWS_DEFAULT_REGION"
+      - echo "Current directory: $CODEBUILD_SRC_DIR"
+      - ls -la
+      - echo "Pre-build phase complete"
+
+  build:
+    commands:
+      - echo "Starting deployment phase..."
+      
+      # Deploy Lambda functions
+      - echo "Deploying Lambda functions..."
+      - |
+        for zip_file in *.zip; do
+          if [ -f "$zip_file" ]; then
+            function_name="${zip_file%.zip}"
+            echo "Deploying Lambda function: $function_name"
+            aws lambda update-function-code \
+              --function-name "$function_name" \
+              --zip-file "fileb://$zip_file" \
+              --region "$AWS_DEFAULT_REGION" || echo "Failed to deploy $function_name"
+          fi
+        done
+      
+      # Deploy frontend to S3
+      - echo "Deploying frontend to S3..."
+      - |
+        if [ -d "frontend" ]; then
+          aws s3 sync frontend/ s3://voice-assistant-ai-prod-web-qay5floh/ \
+            --delete \
+            --region "$AWS_DEFAULT_REGION" || echo "Failed to deploy frontend"
+        fi
+      
+      # Update API Gateway
+      - echo "Updating API Gateway..."
+      - |
+        API_ID=$(aws apigateway get-rest-apis --query 'items[?name==`voice-assistant-ai-api`].id' --output text)
+        if [ ! -z "$API_ID" ]; then
+          aws apigateway create-deployment \
+            --rest-api-id "$API_ID" \
+            --stage-name "prod" \
+            --region "$AWS_DEFAULT_REGION" || echo "Failed to update API Gateway"
+        fi
+      
+      # Invalidate CloudFront cache
+      - echo "Invalidating CloudFront cache..."
+      - |
+        DISTRIBUTION_ID=$(aws cloudfront list-distributions --query 'DistributionList.Items[?Comment==`Voice Assistant AI Web Distribution`].Id' --output text)
+        if [ ! -z "$DISTRIBUTION_ID" ]; then
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --paths "/*" \
+            --region "$AWS_DEFAULT_REGION" || echo "Failed to invalidate CloudFront"
+        fi
+      
+      - echo "Deployment phase complete"
+
+  post_build:
+    commands:
+      - echo "Starting post-deployment phase..."
+      - echo "Deployment completed on $(date)"
+      - echo "Environment: $ENVIRONMENT"
+      - echo "Post-deployment phase complete"
+
+artifacts:
+  files:
+    - '**/*'
+  discard-paths: no

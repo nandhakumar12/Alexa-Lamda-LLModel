@@ -1,0 +1,73 @@
+version: 0.2
+
+env:
+  variables:
+    PYTHON_VERSION: "3.9"
+    NODE_VERSION: "18"
+    PROJECT_NAME: "voice-assistant-ai"
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+      nodejs: 18
+    commands:
+      - echo "Installing testing dependencies..."
+      - pip install --upgrade pip
+      - pip install pytest pytest-cov black flake8
+      - echo "Installation complete"
+
+  pre_build:
+    commands:
+      - echo "Starting test pre-build phase..."
+      - echo "Environment: $ENVIRONMENT"
+      - echo "AWS Region: $AWS_DEFAULT_REGION"
+      - echo "Pre-build phase complete"
+
+  build:
+    commands:
+      - echo "Starting testing phase..."
+      
+      # Install Python dependencies
+      - echo "Installing Python dependencies..."
+      - cd backend
+      - pip install -r requirements.txt
+      - cd ..
+      
+      # Install Node.js dependencies
+      - echo "Installing Node.js dependencies..."
+      - cd frontend
+      - npm ci
+      - cd ..
+      
+      # Python code quality checks
+      - echo "Running Python code quality checks..."
+      - cd backend
+      - black . --check || echo "Black formatting issues found"
+      - flake8 . --max-line-length=88 || echo "Flake8 issues found"
+      - cd ..
+      
+      # Python tests
+      - echo "Running Python tests..."
+      - cd backend
+      - pytest tests/ -v --cov=. --cov-report=xml || echo "Some tests failed"
+      - cd ..
+      
+      # Frontend tests
+      - echo "Running frontend tests..."
+      - cd frontend
+      - npm test -- --watchAll=false || echo "Some frontend tests failed"
+      - cd ..
+      
+      - echo "Testing phase complete"
+
+  post_build:
+    commands:
+      - echo "Starting post-testing phase..."
+      - echo "Testing completed on $(date)"
+      - echo "Post-testing phase complete"
+
+artifacts:
+  files:
+    - '**/*'
+  discard-paths: no

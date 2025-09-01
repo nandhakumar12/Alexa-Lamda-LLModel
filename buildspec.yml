@@ -1,16 +1,98 @@
 version: 0.2
+
+env:
+  variables:
+    PYTHON_VERSION: "3.9"
+    NODE_VERSION: "18"
+    PROJECT_NAME: "voice-assistant-ai"
+    ENVIRONMENT: "prod"
+
 phases:
   install:
     runtime-versions:
       python: 3.9
+      nodejs: 18
     commands:
-      - echo "Install complete"
+      - echo "Installing system dependencies..."
+      - apt-get update -y
+      - apt-get install -y zip unzip jq curl git
+      - echo "Installing Python dependencies..."
+      - pip install --upgrade pip
+      - pip install awscli boto3
+      - echo "Installation complete"
+
+  pre_build:
+    commands:
+      - echo "Starting pre-build phase..."
+      - echo "Current directory: $CODEBUILD_SRC_DIR"
+      - echo "AWS Region: $AWS_DEFAULT_REGION"
+      - echo "Environment: $ENVIRONMENT"
+      - echo "Build ID: $CODEBUILD_BUILD_ID"
+      - echo "Source Version: $CODEBUILD_RESOLVED_SOURCE_VERSION"
+      - echo "Pre-build phase complete"
+
   build:
     commands:
-      - echo "Build complete"
+      - echo "Starting build phase..."
+      
+      # Install Python dependencies
+      - echo "Installing Python dependencies..."
+      - cd backend
+      - pip install -r requirements.txt
+      - cd ..
+      
+      # Install Node.js dependencies
+      - echo "Installing Node.js dependencies..."
+      - cd frontend
+      - npm ci
+      - cd ..
+      
+      # Build frontend
+      - echo "Building frontend..."
+      - cd frontend
+      - npm run build
+      - cd ..
+      
+      # Package Lambda functions
+      - echo "Packaging Lambda functions..."
+      - cd backend/lambda_functions
+      - |
+        for dir in */; do
+          if [ -f "$dir/requirements.txt" ]; then
+            echo "Packaging $dir"
+            cd "$dir"
+            pip install -r requirements.txt -t .
+            zip -r "${dir%/}.zip" . -x "*.pyc" "__pycache__/*" "*.git*"
+            cd ..
+          fi
+        done
+      - cd ../..
+      
+      # Create deployment artifacts
+      - echo "Creating deployment artifacts..."
+      - mkdir -p artifacts
+      - cp -r backend/lambda_functions/*.zip artifacts/ || echo "No Lambda packages found"
+      - cp -r frontend/build artifacts/frontend || echo "Frontend build not found"
+      - cp -r backend artifacts/backend || echo "Backend copy failed"
+      - cp buildspec.yml artifacts/
+      
+      - echo "Build phase complete"
+
   post_build:
     commands:
-      - echo "Post build complete"
+      - echo "Starting post-build phase..."
+      - echo "Build completed on $(date)"
+      - echo "Build artifacts:"
+      - ls -la artifacts/
+      - echo "Post-build phase complete"
+
 artifacts:
   files:
-    - '**/*'
+    - artifacts/**/*
+  discard-paths: no
+  base-directory: artifacts
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - 'node_modules/**/*'
