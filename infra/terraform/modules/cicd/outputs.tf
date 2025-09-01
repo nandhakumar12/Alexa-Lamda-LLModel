@@ -10,12 +10,12 @@ output "pipeline_arn" {
 
 output "artifact_bucket" {
   description = "S3 bucket for CodePipeline artifacts"
-  value       = "voice-ai-pipeline-artifacts-eeeb49a7"
+  value       = aws_s3_bucket.pipeline_artifacts.bucket
 }
 
 output "artifact_bucket_arn" {
   description = "ARN of the S3 bucket for CodePipeline artifacts"
-  value       = "arn:aws:s3:::voice-ai-pipeline-artifacts-eeeb49a7"
+  value       = aws_s3_bucket.pipeline_artifacts.arn
 }
 
 output "sns_topic_arn" {

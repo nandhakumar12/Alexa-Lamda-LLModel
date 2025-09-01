@@ -19,22 +19,22 @@ phases:
     commands:
       - echo "Starting testing phase..."
       - echo "Installing Python dependencies..."
-      - cd backend
+      - cd backend/lambda_functions
       - pip install -r requirements.txt
-      - cd ..
+      - cd ../..
       - echo "Installing Node.js dependencies..."
       - cd frontend
       - npm ci
       - cd ..
       - echo "Running Python code quality checks..."
-      - cd backend
+      - cd backend/lambda_functions
       - black . --check || echo "Black formatting issues found"
       - flake8 . --max-line-length=88 || echo "Flake8 issues found"
-      - cd ..
+      - cd ../..
       - echo "Running Python tests..."
-      - cd backend
-      - pytest tests/ -v --cov=. --cov-report=xml || echo "Some tests failed"
-      - cd ..
+      - cd backend/lambda_functions
+      - python -m pytest . -v || echo "Some tests failed (test files may not exist)"
+      - cd ../..
       - echo "Running frontend tests..."
       - cd frontend
       - npm test -- --watchAll=false || echo "Some frontend tests failed"

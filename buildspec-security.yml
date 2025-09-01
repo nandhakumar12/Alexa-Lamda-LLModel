@@ -18,18 +18,18 @@ phases:
     commands:
       - echo "Starting security scanning phase..."
       - echo "Installing Python dependencies..."
-      - cd backend
+      - cd backend/lambda_functions
       - pip install -r requirements.txt
-      - cd ..
+      - cd ../..
       - echo "Installing Node.js dependencies..."
       - cd frontend
       - npm ci
       - cd ..
       - echo "Running Python security scans..."
-      - cd backend
+      - cd backend/lambda_functions
       - bandit -r . -f json -o bandit-report.json || echo "Bandit scan completed"
       - safety check --json --output safety-report.json || echo "Safety check completed"
-      - cd ..
+      - cd ../..
       - echo "Running Node.js security scans..."
       - cd frontend
       - npm audit --audit-level=moderate --json > ../npm-audit-report.json || echo "npm audit completed"

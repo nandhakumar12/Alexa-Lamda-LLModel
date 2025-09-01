@@ -7,27 +7,59 @@ terraform {
   }
 }
 
-# S3 Bucket for Pipeline Artifacts - Temporarily commented out to avoid replacement
-# resource "aws_s3_bucket" "pipeline_artifacts" {
-#   bucket = "${var.name_prefix}-pipeline-artifacts-${var.suffix}"
-#   tags   = var.tags
-# }
+# S3 Bucket for Pipeline Artifacts
+resource "aws_s3_bucket" "pipeline_artifacts" {
+  bucket = "${var.name_prefix}-pipeline-artifacts-${var.suffix}"
+  tags   = var.tags
+}
 
-# resource "aws_s3_bucket_versioning" "pipeline_artifacts" {
-#   bucket = aws_s3_bucket.pipeline_artifacts.id
-#   versioning_configuration {
-#     status = "Enabled"
-#   }
-# }
+resource "aws_s3_bucket_versioning" "pipeline_artifacts" {
+  bucket = aws_s3_bucket.pipeline_artifacts.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
 
-# resource "aws_s3_bucket_server_side_encryption_configuration" "pipeline_artifacts" {
-#   bucket = aws_s3_bucket.pipeline_artifacts.id
-#   rule {
-#     apply_server_side_encryption_by_default {
-#       sse_algorithm = "AES256"
-#     }
-#   }
-# }
+resource "aws_s3_bucket_server_side_encryption_configuration" "pipeline_artifacts" {
+  bucket = aws_s3_bucket.pipeline_artifacts.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# S3 Bucket Policy for Pipeline Artifacts
+resource "aws_s3_bucket_policy" "pipeline_artifacts" {
+  bucket = aws_s3_bucket.pipeline_artifacts.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowCodePipelineAccess"
+        Effect    = "Allow"
+        Principal = {
+          AWS = [
+            aws_iam_role.codepipeline_role.arn,
+            aws_iam_role.codebuild_role.arn
+          ]
+        }
+        Action = [
+          "s3:GetBucketVersioning",
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          aws_s3_bucket.pipeline_artifacts.arn,
+          "${aws_s3_bucket.pipeline_artifacts.arn}/*"
+        ]
+      }
+    ]
+  })
+}
 
 # CodeBuild Service Role
 resource "aws_iam_role" "codebuild_role" {
@@ -59,9 +91,12 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "s3:GetObject",
-          "s3:GetObjectVersion",
+          "s3:GetObjectVersion", 
           "s3:PutObject",
+          "s3:DeleteObject",
           "s3:GetBucketVersioning",
+          "s3:GetBucketLocation",
+          "s3:ListBucket",
           "lambda:UpdateFunctionCode",
           "lambda:UpdateFunctionConfiguration",
           "lambda:GetFunction",
@@ -291,9 +326,12 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
         Effect = "Allow"
         Action = [
           "s3:GetBucketVersioning",
+          "s3:GetBucketLocation",
+          "s3:ListBucket",
           "s3:GetObject",
           "s3:GetObjectVersion",
           "s3:PutObject",
+          "s3:DeleteObject",
           "codebuild:BatchGetBuilds",
           "codebuild:StartBuild",
           "codecommit:CancelUploadArchive",
@@ -346,7 +384,7 @@ resource "aws_codepipeline" "main" {
   role_arn = aws_iam_role.codepipeline_role.arn
 
   artifact_store {
-    location = "voice-ai-pipeline-artifacts-eeeb49a7"
+    location = aws_s3_bucket.pipeline_artifacts.bucket
     type     = "S3"
   }
 

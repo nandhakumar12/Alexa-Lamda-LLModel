@@ -19,9 +19,9 @@ phases:
     commands:
       - echo "Starting build phase..."
       - echo "Installing Python dependencies..."
-      - cd backend
+      - cd backend/lambda_functions
       - pip install -r requirements.txt
-      - cd ..
+      - cd ../..
       - echo "Installing Node.js dependencies..."
       - cd frontend
       - npm ci
@@ -32,7 +32,7 @@ phases:
       - cd ..
       - echo "Creating artifacts..."
       - mkdir -p artifacts
-      - cp -r backend artifacts/backend
+      - cp -r backend/lambda_functions artifacts/backend
       - cp -r frontend/build artifacts/frontend
       - echo "Build phase complete"
   post_build:
