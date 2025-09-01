@@ -92,7 +92,7 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
           "codestar-connections:UseConnection"
         ]
         Resource = [
-          "arn:aws:codestar-connections:us-east-1:266833219725:connection/4e4e35a8-b0d3-4da9-af17-fb1700334afd"
+          aws_codestarconnections_connection.github.arn
         ]
       }
     ]
@@ -178,7 +178,7 @@ resource "aws_codepipeline" "voice_ai_pipeline" {
       output_artifacts = ["source_output"]
 
               configuration = {
-          ConnectionArn    = "arn:aws:codestar-connections:us-east-1:266833219725:connection/4e4e35a8-b0d3-4da9-af17-fb1700334afd"
+          ConnectionArn    = aws_codestarconnections_connection.github.arn
           FullRepositoryId = "nandhakumar12/Alexa-Lamda-LLModel" # Updated with your actual repo
           BranchName       = "main"
         }

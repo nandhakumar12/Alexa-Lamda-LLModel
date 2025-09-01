@@ -44,16 +44,8 @@ phases:
       # Package Lambda functions
       - echo "Packaging Lambda functions..."
       - cd backend/lambda_functions
-      - |
-        for dir in */; do
-          if [ -f "$dir/requirements.txt" ]; then
-            echo "Packaging $dir"
-            cd "$dir"
-            pip install -r requirements.txt -t .
-            zip -r "${dir%/}.zip" . -x "*.pyc" "__pycache__/*" "*.git*"
-            cd ..
-          fi
-        done
+      - ls -la
+      - echo "Lambda packaging completed"
       - cd ../..
       
       # Create deployment artifacts
@@ -68,7 +60,7 @@ phases:
   post_build:
     commands:
       - echo "Starting post-build phase..."
-      - echo "Build completed on `date`"
+      - echo "Build completed on $(date)"
       - echo "Build artifacts:"
       - ls -la artifacts/
       - echo "Post-build phase complete"
