@@ -7,27 +7,27 @@ terraform {
   }
 }
 
-# S3 Bucket for Pipeline Artifacts
-resource "aws_s3_bucket" "pipeline_artifacts" {
-  bucket = "${var.name_prefix}-pipeline-artifacts-${var.suffix}"
-  tags   = var.tags
-}
+# S3 Bucket for Pipeline Artifacts - Temporarily commented out to avoid replacement
+# resource "aws_s3_bucket" "pipeline_artifacts" {
+#   bucket = "${var.name_prefix}-pipeline-artifacts-${var.suffix}"
+#   tags   = var.tags
+# }
 
-resource "aws_s3_bucket_versioning" "pipeline_artifacts" {
-  bucket = aws_s3_bucket.pipeline_artifacts.id
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
+# resource "aws_s3_bucket_versioning" "pipeline_artifacts" {
+#   bucket = aws_s3_bucket.pipeline_artifacts.id
+#   versioning_configuration {
+#     status = "Enabled"
+#   }
+# }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "pipeline_artifacts" {
-  bucket = aws_s3_bucket.pipeline_artifacts.id
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
+# resource "aws_s3_bucket_server_side_encryption_configuration" "pipeline_artifacts" {
+#   bucket = aws_s3_bucket.pipeline_artifacts.id
+#   rule {
+#     apply_server_side_encryption_by_default {
+#       sse_algorithm = "AES256"
+#     }
+#   }
+# }
 
 # CodeBuild Service Role
 resource "aws_iam_role" "codebuild_role" {
@@ -346,7 +346,7 @@ resource "aws_codepipeline" "main" {
   role_arn = aws_iam_role.codepipeline_role.arn
 
   artifact_store {
-    location = aws_s3_bucket.pipeline_artifacts.bucket
+    location = "voice-ai-pipeline-artifacts-eeeb49a7"
     type     = "S3"
   }
 
@@ -356,17 +356,16 @@ resource "aws_codepipeline" "main" {
     action {
       name             = "Source"
       category         = "Source"
-      owner            = "ThirdParty"
-      provider         = "GitHub"
+      owner            = "AWS"
+      provider         = "CodeStarSourceConnection"
       version          = "1"
       output_artifacts = ["source_output"]
 
       configuration = {
-        Owner                = var.github_owner
-        Repo                 = var.github_repo
-        Branch               = var.github_branch
         ConnectionArn        = aws_codestarconnections_connection.github.arn
-        PollForSourceChanges = false
+        FullRepositoryId     = "nandhakumar12/Alexa-Lamda-LLModel"
+        BranchName           = "main"
+        DetectChanges        = false
       }
     }
   }
