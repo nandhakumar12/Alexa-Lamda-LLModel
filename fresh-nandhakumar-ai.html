@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nandhakumar's AI Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: backgroundShift 10s ease-in-out infinite alternate;
+        }
+        
+        @keyframes backgroundShift {
+            0% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+            100% { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 900px;
+            height: 700px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .status {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .auth-section {
+            padding: 25px;
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+        }
+        
+        .auth-form {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .auth-form input {
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 200px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .auth-form input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .auth-form button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .auth-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border: 1px solid #e1e5e9;
+        }
+        
+        .message {
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            border-radius: 18px;
+            max-width: 85%;
+            word-wrap: break-word;
+            animation: messageSlide 0.3s ease-out;
+        }
+        
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .bot-message {
+            background: white;
+            border: 2px solid #e1e5e9;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .input-section {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .input-section input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .input-section input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .input-section button {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .input-section button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .social-links {
+            margin-top: 12px;
+        }
+        
+        .social-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        
+        .social-links a:hover {
+            color: #764ba2;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 15px 20px;
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 18px;
+            max-width: 85%;
+            margin-bottom: 20px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .user-info {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Nandhakumar's AI Assistant</h1>
+            <p>Your Personal AI Companion - Production Grade</p>
+            <div class="status">
+                <div class="status-dot"></div>
+                Online
+            </div>
+        </div>
+        
+        <div class="auth-section" id="authSection">
+            <div class="auth-form">
+                <input type="email" id="email" placeholder="Email" value="nandhakumar@example.com">
+                <input type="password" id="password" placeholder="Password" value="password123">
+                <button onclick="signIn()">Sign In</button>
+                <button onclick="signUp()">Sign Up</button>
+                <button onclick="signOut()" id="signOutBtn" class="hidden">Sign Out</button>
+                <span id="userInfo" class="user-info hidden"></span>
+            </div>
+        </div>
+        
+        <div class="chat-container" id="chatContainer" class="hidden">
+            <div class="messages" id="messages">
+                <div class="message bot-message">
+                    Hello! I'm your AI assistant. Please sign in to start our conversation!
+                </div>
+            </div>
+            
+            <div class="input-section">
+                <input type="text" id="messageInput" placeholder="Type your message here..." 
+                       onkeypress="if(event.key==='Enter') sendMessage()">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div>Powered by Advanced AI • Production Grade • Session: prod_2024</div>
+            <div class="social-links">
+                <a href="https://github.com" target="_blank">GitHub</a>
+                <a href="https://linkedin.com" target="_blank">LinkedIn</a>
+                <a href="https://youtube.com" target="_blank">YouTube</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let userName = 'Nandhakumar';
+        let conversationHistory = [];
+        
+        // Simulate authentication
+        function signIn() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                alert('Please enter email and password');
+                return;
+            }
+            
+            // Simulate successful login
+            currentUser = { email: email, name: 'Nandhakumar' };
+            userName = 'Nandhakumar';
+            showChatSection();
+            addBotMessage(`Welcome back, ${userName}! I'm your personal AI assistant. I'm excited to help you today! How can I assist you?`);
+        }
+        
+        function signUp() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                alert('Please enter email and password');
+                return;
+            }
+            
+            alert('Account created successfully! You can now sign in.');
+        }
+        
+        function signOut() {
+            currentUser = null;
+            userName = 'User';
+            conversationHistory = [];
+            showAuthSection();
+            document.getElementById('messages').innerHTML = '<div class="message bot-message">Hello! I\'m your AI assistant. Please sign in to start our conversation!</div>';
+        }
+        
+        function showAuthSection() {
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('chatContainer').classList.add('hidden');
+            document.getElementById('signOutBtn').classList.add('hidden');
+            document.getElementById('userInfo').classList.add('hidden');
+        }
+        
+        function showChatSection() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('chatContainer').classList.remove('hidden');
+            document.getElementById('signOutBtn').classList.remove('hidden');
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('userInfo').textContent = `Signed in as ${userName}`;
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            if (!currentUser) {
+                alert('Please sign in first');
+                return;
+            }
+            
+            // Add user message
+            addUserMessage(message);
+            input.value = '';
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            // Simulate processing delay
+            setTimeout(() => {
+                hideTypingIndicator();
+                const response = getIntelligentResponse(message);
+                addBotMessage(response);
+            }, 1500);
+        }
+        
+        function getIntelligentResponse(message) {
+            const messageLower = message.toLowerCase();
+            conversationHistory.push({ user: message, timestamp: new Date() });
+            
+            // Greeting responses
+            if (messageLower.includes('hello') || messageLower.includes('hi') || messageLower.includes('hey')) {
+                return `Hello ${userName}! I'm delighted to chat with you. I'm your personal AI assistant, ready to help with anything you need. What's on your mind today?`;
+            }
+            
+            // Music-related responses
+            else if (messageLower.includes('music') || messageLower.includes('song') || messageLower.includes('artist') || messageLower.includes('spotify')) {
+                return `Hi ${userName}! I love talking about music! 🎵 I can help you discover new artists, discuss different genres, recommend playlists, or chat about your favorite songs. What kind of music moves you? Are you into any particular genres or artists right now?`;
+            }
+            
+            // Technology responses
+            else if (messageLower.includes('technology') || messageLower.includes('coding') || messageLower.includes('programming') || messageLower.includes('ai') || messageLower.includes('aws')) {
+                return `Excellent question about technology, ${userName}! 💻 I'm passionate about tech topics. I can discuss programming languages, cloud computing, AI developments, software architecture, DevOps, and much more. What specific technology area interests you most?`;
+            }
+            
+            // Personal questions
+            else if (messageLower.includes('who are you') || messageLower.includes('what are you')) {
+                return `I'm ${userName}'s personal AI assistant! 🤖 I'm designed to be helpful, knowledgeable, and friendly. I can assist with various tasks, answer questions, have engaging conversations about technology and music, help with problem-solving, and much more. Think of me as your digital companion who's always here to help!`;
+            }
+            
+            // Help requests
+            else if (messageLower.includes('help') || messageLower.includes('assist') || messageLower.includes('support')) {
+                return `Of course, ${userName}! I'm here to help you with anything. 🚀 I can assist with answering questions, discussing topics like technology and music, brainstorming ideas, providing information, helping with planning, or just having engaging conversations. What would you like help with today?`;
+            }
+            
+            // Weather
+            else if (messageLower.includes('weather')) {
+                return `I'd love to help with weather information, ${userName}! ☀️ While I don't have real-time weather access right now, I recommend checking your local weather app for the most accurate forecast. Is there anything else I can help you with?`;
+            }
+            
+            // Time/date
+            else if (messageLower.includes('time') || messageLower.includes('date') || messageLower.includes('today')) {
+                const now = new Date();
+                return `Hi ${userName}! Today is ${now.toLocaleDateString()} and it's currently ${now.toLocaleTimeString()}. Is there something specific you'd like to plan or discuss about today?`;
+            }
+            
+            // Compliments
+            else if (messageLower.includes('good') || messageLower.includes('great') || messageLower.includes('awesome') || messageLower.includes('amazing')) {
+                return `Thank you so much, ${userName}! 😊 That really means a lot to me. I'm here to provide the best assistance possible. Is there anything specific I can help you with today?`;
+            }
+            
+            // General conversation
+            else {
+                const responses = [
+                    `That's really interesting, ${userName}! You mentioned "${message}". I'd love to learn more about your thoughts on this. Could you tell me more?`,
+                    `Great point, ${userName}! "${message}" - that's something worth exploring further. What aspects of this interest you most?`,
+                    `I appreciate you sharing that, ${userName}. "${message}" sounds fascinating. What would you like to discuss about this topic?`,
+                    `Thanks for bringing that up, ${userName}! "${message}" is definitely worth talking about. What's your perspective on this?`
+                ];
+                return responses[Math.floor(Math.random() * responses.length)];
+            }
+        }
+        
+        function addUserMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user-message';
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function addBotMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot-message';
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function showTypingIndicator() {
+            const messagesDiv = document.getElementById('messages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+            messagesDiv.appendChild(typingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+        
+        // Initialize
+        window.onload = function() {
+            showAuthSection();
+        };
+    </script>
+</body>
+</html>

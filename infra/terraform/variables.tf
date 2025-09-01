@@ -329,3 +329,34 @@ variable "webhook_urls" {
   type        = list(string)
   default     = []
 }
+
+# CI/CD Variables
+variable "github_owner" {
+  description = "GitHub repository owner"
+  type        = string
+  default     = ""
+}
+
+variable "github_repo" {
+  description = "GitHub repository name"
+  type        = string
+  default     = ""
+}
+
+variable "github_branch" {
+  description = "GitHub branch to track"
+  type        = string
+  default     = "main"
+}
+
+variable "notification_email" {
+  description = "Email address for notifications"
+  type        = string
+  default     = ""
+}
+
+variable "enable_manual_approval" {
+  description = "Enable manual approval for production deployments"
+  type        = bool
+  default     = true
+}

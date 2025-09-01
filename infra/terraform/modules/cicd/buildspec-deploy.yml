@@ -1,0 +1,309 @@
+version: 0.2
+
+# CodeBuild specification for Deployment
+# Multi-environment deployment with blue-green strategy and rollback capabilities
+
+env:
+  variables:
+    PYTHON_VERSION: "3.9"
+    NODE_VERSION: "18"
+    PROJECT_NAME: "voice-assistant-ai"
+  parameter-store:
+    AWS_ACCOUNT_ID: "/voice-assistant/aws-account-id"
+    S3_BUCKET: "/voice-assistant/s3-bucket"
+    CLOUDFRONT_DISTRIBUTION_ID: "/voice-assistant/cloudfront-distribution-id"
+  secrets-manager:
+    DATABASE_URL: "voice-assistant/database:url"
+    API_KEYS: "voice-assistant/api-keys:all"
+
+phases:
+  install:
+    runtime-versions:
+      python: $PYTHON_VERSION
+      nodejs: $NODE_VERSION
+    commands:
+      - echo "Installing deployment dependencies..."
+      - apt-get update -y
+      - apt-get install -y zip unzip jq curl git
+      
+      - echo "Installing AWS CLI v2..."
+      - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      - unzip awscliv2.zip
+      - ./aws/install
+      
+      - echo "Installing Terraform..."
+      - wget https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
+      - unzip terraform_1.6.0_linux_amd64.zip
+      - mv terraform /usr/local/bin/
+      
+      - echo "Installing deployment tools..."
+      - pip install --upgrade pip
+      - pip install boto3 awscli-plugin-endpoint
+
+  pre_build:
+    commands:
+      - echo "Pre-build phase started on `date`"
+      - echo "Setting up deployment environment..."
+      - export ENVIRONMENT=${ENVIRONMENT:-dev}
+      - export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - export DEPLOYMENT_TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+      
+      - echo "Validating environment: $ENVIRONMENT"
+      - echo "Deployment timestamp: $DEPLOYMENT_TIMESTAMP"
+      
+      # Validate AWS credentials and permissions
+      - aws sts get-caller-identity
+      - aws s3 ls s3://$S3_BUCKET || echo "S3 bucket not accessible"
+
+  build:
+    commands:
+      - echo "Deployment phase started on `date`"
+      
+      # 1. Infrastructure Deployment (if needed)
+      - echo "Checking infrastructure changes..."
+      - |
+        if [ "$ENVIRONMENT" = "prod" ] || [ "$DEPLOY_INFRASTRUCTURE" = "true" ]; then
+          echo "Deploying infrastructure with Terraform..."
+          cd infra/terraform
+          
+          # Initialize Terraform
+          terraform init -backend-config="bucket=${S3_BUCKET}" -backend-config="key=terraform/${ENVIRONMENT}/terraform.tfstate"
+          
+          # Plan infrastructure changes
+          terraform plan -var="environment=${ENVIRONMENT}" -out=tfplan
+          
+          # Apply infrastructure changes
+          terraform apply -auto-approve tfplan
+          
+          # Save outputs for later use
+          terraform output -json > ../../terraform-outputs.json
+          cd ../..
+        else
+          echo "Skipping infrastructure deployment for $ENVIRONMENT"
+        fi
+      
+      # 2. Lambda Functions Deployment
+      - echo "Deploying Lambda functions..."
+      - |
+        for function_dir in backend/lambda_functions/*/; do
+          if [ -d "$function_dir" ]; then
+            function_name=$(basename "$function_dir")
+            echo "Deploying Lambda function: $function_name"
+            
+            cd "$function_dir"
+            
+            # Create deployment package
+            mkdir -p package
+            
+            # Install dependencies
+            if [ -f requirements.txt ]; then
+              pip install -r requirements.txt -t package/
+            fi
+            
+            # Copy source code
+            cp *.py package/ 2>/dev/null || true
+            
+            # Copy shared utilities
+            if [ -d "../../shared" ]; then
+              cp -r ../../shared package/
+            fi
+            
+            # Create ZIP package
+            cd package
+            zip -r "../${function_name}-${DEPLOYMENT_TIMESTAMP}.zip" .
+            cd ..
+            
+            # Deploy to AWS Lambda
+            FUNCTION_NAME="${PROJECT_NAME}-${ENVIRONMENT}-${function_name}"
+            
+            # Check if function exists
+            if aws lambda get-function --function-name "$FUNCTION_NAME" >/dev/null 2>&1; then
+              echo "Updating existing function: $FUNCTION_NAME"
+              aws lambda update-function-code \
+                --function-name "$FUNCTION_NAME" \
+                --zip-file "fileb://${function_name}-${DEPLOYMENT_TIMESTAMP}.zip"
+              
+              # Update function configuration if needed
+              aws lambda update-function-configuration \
+                --function-name "$FUNCTION_NAME" \
+                --environment "Variables={ENVIRONMENT=${ENVIRONMENT},DEPLOYMENT_TIMESTAMP=${DEPLOYMENT_TIMESTAMP}}"
+            else
+              echo "Function $FUNCTION_NAME does not exist, skipping..."
+            fi
+            
+            # Clean up
+            rm -rf package
+            rm "${function_name}-${DEPLOYMENT_TIMESTAMP}.zip"
+            
+            cd - > /dev/null
+          fi
+        done
+      
+      # 3. Frontend Deployment
+      - echo "Deploying frontend..."
+      - cd frontend
+      
+      # Build frontend for the target environment
+      - echo "Building frontend for $ENVIRONMENT..."
+      - |
+        if [ "$ENVIRONMENT" = "prod" ]; then
+          npm run build:prod
+        elif [ "$ENVIRONMENT" = "staging" ]; then
+          npm run build:staging
+        else
+          npm run build:dev
+        fi
+      
+      # Deploy to S3
+      - echo "Deploying frontend to S3..."
+      - aws s3 sync build/ "s3://${S3_BUCKET}/" --delete --cache-control "max-age=31536000"
+      - aws s3 cp build/index.html "s3://${S3_BUCKET}/index.html" --cache-control "max-age=0"
+      
+      # Invalidate CloudFront cache
+      - echo "Invalidating CloudFront cache..."
+      - |
+        if [ ! -z "$CLOUDFRONT_DISTRIBUTION_ID" ]; then
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+          echo "CloudFront invalidation created: $INVALIDATION_ID"
+        fi
+      
+      - cd ..
+      
+      # 4. API Gateway Deployment
+      - echo "Deploying API Gateway..."
+      - |
+        # Get API Gateway ID from Terraform outputs or parameter store
+        if [ -f terraform-outputs.json ]; then
+          API_GATEWAY_ID=$(jq -r '.api_gateway_id.value' terraform-outputs.json)
+        else
+          API_GATEWAY_ID=$(aws ssm get-parameter --name "/voice-assistant/api-gateway-id" --query 'Parameter.Value' --output text 2>/dev/null || echo "")
+        fi
+        
+        if [ ! -z "$API_GATEWAY_ID" ]; then
+          echo "Creating API Gateway deployment..."
+          aws apigateway create-deployment \
+            --rest-api-id "$API_GATEWAY_ID" \
+            --stage-name "$ENVIRONMENT" \
+            --description "Deployment at $DEPLOYMENT_TIMESTAMP"
+        else
+          echo "API Gateway ID not found, skipping deployment"
+        fi
+      
+      # 5. Database Migrations (if applicable)
+      - echo "Running database migrations..."
+      - |
+        if [ -d "backend/migrations" ]; then
+          echo "Running database migrations for $ENVIRONMENT..."
+          python backend/manage.py migrate || echo "No migrations to run"
+        fi
+      
+      # 6. Post-deployment Health Checks
+      - echo "Running post-deployment health checks..."
+      - |
+        # Wait for services to be ready
+        sleep 30
+        
+        # Health check script
+        python3 << 'EOF'
+        import requests
+        import json
+        import os
+        import time
+        
+        environment = os.environ.get('ENVIRONMENT', 'dev')
+        
+        # Define health check endpoints
+        endpoints = {
+            'api': f'https://api-{environment}.voice-assistant.com/health',
+            'frontend': f'https://{environment}.voice-assistant.com'
+        }
+        
+        health_status = {}
+        
+        for service, url in endpoints.items():
+            try:
+                response = requests.get(url, timeout=10)
+                health_status[service] = {
+                    'status': 'healthy' if response.status_code == 200 else 'unhealthy',
+                    'status_code': response.status_code,
+                    'response_time': response.elapsed.total_seconds()
+                }
+                print(f"{service}: {health_status[service]['status']}")
+            except Exception as e:
+                health_status[service] = {
+                    'status': 'unhealthy',
+                    'error': str(e)
+                }
+                print(f"{service}: unhealthy - {e}")
+        
+        # Save health check results
+        with open('health-check-results.json', 'w') as f:
+            json.dump(health_status, f, indent=2)
+        
+        # Check if any critical services are unhealthy
+        critical_services = ['api']
+        unhealthy_critical = [s for s in critical_services if health_status.get(s, {}).get('status') != 'healthy']
+        
+        if unhealthy_critical:
+            print(f"CRITICAL: Unhealthy services detected: {unhealthy_critical}")
+            exit(1)
+        EOF
+
+  post_build:
+    commands:
+      - echo "Post-build phase started on `date`"
+      
+      # Generate Deployment Report
+      - echo "Generating deployment report..."
+      - |
+        cat > deployment-report.json << EOF
+        {
+          "timestamp": "$(date -Iseconds)",
+          "environment": "$ENVIRONMENT",
+          "deployment_id": "$DEPLOYMENT_TIMESTAMP",
+          "git_commit": "$CODEBUILD_RESOLVED_SOURCE_VERSION",
+          "build_id": "$CODEBUILD_BUILD_ID",
+          "components_deployed": {
+            "infrastructure": $([ "$ENVIRONMENT" = "prod" ] && echo "true" || echo "false"),
+            "lambda_functions": true,
+            "frontend": true,
+            "api_gateway": true
+          },
+          "health_checks": "health-check-results.json"
+        }
+        EOF
+      
+      # Send deployment notifications
+      - echo "Sending deployment notifications..."
+      - |
+        if [ "$ENVIRONMENT" = "prod" ]; then
+          # Send SNS notification for production deployments
+          aws sns publish \
+            --topic-arn "arn:aws:sns:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:voice-assistant-deployments" \
+            --message "Production deployment completed successfully at $DEPLOYMENT_TIMESTAMP" \
+            --subject "Voice Assistant AI - Production Deployment Success" || true
+        fi
+      
+      # Archive deployment artifacts
+      - echo "Archiving deployment artifacts..."
+      - mkdir -p deployment-artifacts
+      - cp deployment-report.json deployment-artifacts/
+      - cp health-check-results.json deployment-artifacts/ 2>/dev/null || true
+      - cp terraform-outputs.json deployment-artifacts/ 2>/dev/null || true
+      
+      - echo "Deployment completed successfully!"
+
+artifacts:
+  files:
+    - 'deployment-artifacts/**/*'
+  name: deployment-artifacts
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - '/root/.npm/**/*'
+    - '/root/.terraform.d/**/*'

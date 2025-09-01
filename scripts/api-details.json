@@ -1,0 +1,5 @@
+{
+  "api_id": "tcuzlzq1af",
+  "api_url": "https://tcuzlzq1af.execute-api.us-east-1.amazonaws.com/prod",
+  "chatbot_endpoint": "https://tcuzlzq1af.execute-api.us-east-1.amazonaws.com/prod/chatbot"
+}

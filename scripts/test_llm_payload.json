@@ -1,0 +1,3 @@
+{
+  "body": "{\"message\":\"Hello! Test LLM functionality\",\"user_id\":\"test-user\",\"conversation_id\":\"test-123\"}"
+}

@@ -1,0 +1,85 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+      nodejs: 18
+    commands:
+      - echo "Installing dependencies..."
+      - pip install --upgrade pip
+      - pip install awscli boto3
+      - echo "Installation complete"
+
+  pre_build:
+    commands:
+      - echo "Starting pre-build phase..."
+      - echo "Environment: $ENVIRONMENT"
+      - echo "AWS Region: $AWS_DEFAULT_REGION"
+      - echo "Build ID: $CODEBUILD_BUILD_ID"
+      - echo "Source Version: $CODEBUILD_RESOLVED_SOURCE_VERSION"
+
+  build:
+    commands:
+      - echo "Starting build phase..."
+      
+      # Install Python dependencies
+      - echo "Installing Python dependencies..."
+      - cd backend
+      - pip install -r requirements.txt
+      - cd ..
+      
+      # Install Node.js dependencies
+      - echo "Installing Node.js dependencies..."
+      - cd frontend
+      - npm ci
+      - cd ..
+      
+      # Build frontend
+      - echo "Building frontend..."
+      - cd frontend
+      - npm run build
+      - cd ..
+      
+      # Package Lambda functions
+      - echo "Packaging Lambda functions..."
+      - cd backend/lambda_functions
+      - |
+        for dir in */; do
+          if [ -f "$dir/requirements.txt" ]; then
+            echo "Packaging $dir"
+            cd "$dir"
+            pip install -r requirements.txt -t .
+            zip -r "${dir%/}.zip" . -x "*.pyc" "__pycache__/*" "*.git*"
+            cd ..
+          fi
+        done
+      - cd ../..
+      
+      # Create deployment artifacts
+      - echo "Creating deployment artifacts..."
+      - mkdir -p artifacts
+      - cp -r backend/lambda_functions/*.zip artifacts/ || echo "No Lambda packages found"
+      - cp -r frontend/build artifacts/frontend || echo "Frontend build not found"
+      - cp buildspec.yml artifacts/
+      
+      - echo "Build phase complete"
+
+  post_build:
+    commands:
+      - echo "Starting post-build phase..."
+      - echo "Build completed on `date`"
+      - echo "Build artifacts:"
+      - ls -la artifacts/
+      - echo "Post-build phase complete"
+
+artifacts:
+  files:
+    - artifacts/**/*
+  discard-paths: no
+  base-directory: artifacts
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - 'node_modules/**/*'

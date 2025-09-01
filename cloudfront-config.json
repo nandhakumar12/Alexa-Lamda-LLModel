@@ -1,8 +1,8 @@
 {
-  "CallerReference": "voice-assistant-ai-2025",
-  "Comment": "Voice Assistant AI Production Distribution with HTTPS",
+  "CallerReference": "nandhakumar-voice-assistant-ai-2024",
+  "Comment": "Nandhakumar's Voice Assistant AI CloudFront Distribution",
   "DefaultCacheBehavior": {
-    "TargetOriginId": "S3-voice-assistant-ai-production-frontend",
+    "TargetOriginId": "S3-nandhakumar-voice-assistant-ai",
     "ViewerProtocolPolicy": "redirect-to-https",
     "MinTTL": 0,
     "ForwardedValues": {
@@ -20,8 +20,8 @@
     "Quantity": 1,
     "Items": [
       {
-        "Id": "S3-voice-assistant-ai-production-frontend",
-        "DomainName": "voice-assistant-ai-production-frontend.s3-website-us-east-1.amazonaws.com",
+        "Id": "S3-nandhakumar-voice-assistant-ai",
+        "DomainName": "nandhakumar-voice-assistant-ai.s3-website-us-east-1.amazonaws.com",
         "CustomOriginConfig": {
           "HTTPPort": 80,
           "HTTPSPort": 443,
@@ -31,5 +31,5 @@
     ]
   },
   "Enabled": true,
-  "DefaultRootObject": "index.html"
+  "DefaultRootObject": "public/index.html"
 }

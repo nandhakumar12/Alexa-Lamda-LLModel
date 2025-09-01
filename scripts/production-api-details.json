@@ -1,0 +1,6 @@
+{
+  "api_id": "aj6fadvnlj",
+  "api_url": "https://aj6fadvnlj.execute-api.us-east-1.amazonaws.com/prod",
+  "chatbot_endpoint": "https://aj6fadvnlj.execute-api.us-east-1.amazonaws.com/prod/chatbot",
+  "health_endpoint": "https://aj6fadvnlj.execute-api.us-east-1.amazonaws.com/prod/health"
+}

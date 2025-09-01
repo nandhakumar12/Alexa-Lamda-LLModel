@@ -57,8 +57,8 @@ interface MetricsResponse {
 }
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'http://localhost:8000';
-const API_TIMEOUT = 30000; // 30 seconds
+const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'https://4po6882mz6.execute-api.us-east-1.amazonaws.com/prod';
+const API_TIMEOUT = 15000; // 15 seconds
 
 class ApiService {
   private client: AxiosInstance;
@@ -71,6 +71,8 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+      // Disable preflight for simple requests
+      withCredentials: false,
     });
 
     this.setupInterceptors();
@@ -84,7 +86,7 @@ class ApiService {
           // Get current session from Amplify
           const session = await Auth.currentSession();
           const token = session.getIdToken().getJwtToken();
-          
+
           if (token) {
             config.headers.Authorization = `Bearer ${token}`;
           }
@@ -93,9 +95,9 @@ class ApiService {
           console.debug('No valid session found');
         }
 
-        // Add correlation ID for tracing
-        config.headers['X-Correlation-ID'] = this.generateCorrelationId();
-        
+        // Don't add custom headers that trigger preflight
+        // config.headers['X-Correlation-ID'] = this.generateCorrelationId();
+
         return config;
       },
       (error) => {
@@ -143,39 +145,40 @@ class ApiService {
     const status = error.response?.status;
     const message = error.response?.data?.message || error.message;
 
-    switch (status) {
-      case 400:
-        toast.error(`Bad Request: ${message}`);
-        break;
-      case 403:
-        toast.error('Access forbidden');
-        break;
-      case 404:
-        toast.error('Resource not found');
-        break;
-      case 429:
-        toast.error('Too many requests. Please try again later.');
-        break;
-      case 500:
-        toast.error('Server error. Please try again later.');
-        break;
-      default:
-        if (error.code === 'NETWORK_ERROR') {
-          toast.error('Network error. Please check your connection.');
-        } else {
-          toast.error(`An error occurred: ${message}`);
-        }
-    }
+    console.error('API Error:', {
+      status,
+      message,
+      url: error.config?.url,
+      method: error.config?.method,
+      data: error.response?.data,
+      code: error.code
+    });
+
+    // Don't show toast errors, let the calling code handle them
+    // This prevents duplicate error messages
   }
 
-  // Generic request method
-  private async request<T>(config: AxiosRequestConfig): Promise<T> {
-    try {
-      const response: AxiosResponse<T> = await this.client(config);
-      return response.data;
-    } catch (error) {
-      throw error;
+  // Generic request method with retry
+  private async request<T>(config: AxiosRequestConfig, retries: number = 2): Promise<T> {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const response: AxiosResponse<T> = await this.client(config);
+        return response.data;
+      } catch (error: any) {
+        console.error(`API request attempt ${attempt + 1} failed:`, error);
+
+        // If this is the last attempt, or it's not a network error, throw immediately
+        if (attempt === retries || (error.response && error.response.status < 500)) {
+          throw error;
+        }
+
+        // Wait before retrying (exponential backoff)
+        const delay = Math.pow(2, attempt) * 1000;
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
+    throw new Error('Max retries exceeded');
   }
 
   // Chat API methods

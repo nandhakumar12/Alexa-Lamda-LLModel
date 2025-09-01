@@ -22,9 +22,10 @@ resource "aws_dynamodb_table" "conversation_history" {
 
   # Global Secondary Index for querying by conversation_id
   global_secondary_index {
-    name     = "conversation-id-index"
-    hash_key = "conversation_id"
-    range_key = "sort_key"
+    name            = "conversation-id-index"
+    hash_key        = "conversation_id"
+    range_key       = "sort_key"
+    projection_type = "ALL"
   }
 
   # TTL for automatic cleanup of old conversations (30 days)

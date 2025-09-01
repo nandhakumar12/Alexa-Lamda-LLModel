@@ -1,0 +1,6 @@
+{
+  "function_name": "nandhakumar-production-chatbot",
+  "function_arn": "arn:aws:lambda:us-east-1:266833219725:function:nandhakumar-production-chatbot",
+  "model": "claude-3-haiku",
+  "provider": "aws-bedrock"
+}

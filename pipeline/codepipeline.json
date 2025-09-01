@@ -41,7 +41,7 @@
               "category": "Build",
               "owner": "AWS",
               "provider": "CodeBuild",
-              "version": "1"
+              "version": "1"          
             },
             "configuration": {
               "ProjectName": "voice-assistant-ai-test-lint"

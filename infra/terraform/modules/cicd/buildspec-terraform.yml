@@ -1,0 +1,209 @@
+version: 0.2
+
+# CodeBuild specification for Voice Assistant AI (Terraform Infrastructure)
+# This buildspec handles infrastructure deployment and updates
+
+env:
+  variables:
+    TERRAFORM_VERSION: "1.5.0"
+    PYTHON_VERSION: "3.9"
+    PROJECT_NAME: "voice-assistant-ai"
+  parameter-store:
+    AWS_ACCOUNT_ID: "/voice-assistant/aws-account-id"
+    TERRAFORM_STATE_BUCKET: "/voice-assistant/terraform-state-bucket"
+    TERRAFORM_STATE_KEY: "/voice-assistant/terraform-state-key"
+  secrets-manager:
+    TERRAFORM_VARS: "voice-assistant/terraform:all"
+
+phases:
+  install:
+    runtime-versions:
+      python: $PYTHON_VERSION
+    commands:
+      - echo "Installing system dependencies..."
+      - apt-get update -y
+      - apt-get install -y unzip curl jq
+      
+      - echo "Installing Terraform..."
+      - curl -fsSL https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip -o terraform.zip
+      - unzip terraform.zip
+      - mv terraform /usr/local/bin/
+      - terraform version
+      
+      - echo "Installing Python dependencies..."
+      - pip install --upgrade pip
+      - pip install boto3 jinja2 pyyaml
+      
+      - echo "Installing tflint..."
+      - curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+      
+      - echo "Installing checkov for security scanning..."
+      - pip install checkov
+
+  pre_build:
+    commands:
+      - echo "Pre-build phase started on `date`"
+      
+      - echo "Setting up environment variables..."
+      - export ENVIRONMENT=${ENVIRONMENT:-dev}
+      - export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - export TF_VAR_environment=$ENVIRONMENT
+      - export TF_VAR_project_name=$PROJECT_NAME
+      
+      - echo "Configuring Terraform backend..."
+      - cd infra/terraform
+      - |
+        cat > backend.tf << EOF
+        terraform {
+          backend "s3" {
+            bucket = "$TERRAFORM_STATE_BUCKET"
+            key    = "$TERRAFORM_STATE_KEY"
+            region = "$AWS_DEFAULT_REGION"
+            encrypt = true
+            dynamodb_table = "${PROJECT_NAME}-terraform-locks"
+          }
+        }
+        EOF
+      
+      - echo "Creating terraform.tfvars from secrets..."
+      - |
+        cat > terraform.tfvars << EOF
+        aws_region = "$AWS_DEFAULT_REGION"
+        environment = "$ENVIRONMENT"
+        project_name = "$PROJECT_NAME"
+        # Additional variables from secrets manager would be added here
+        EOF
+      
+      - echo "Initializing Terraform..."
+      - terraform init
+      
+      - echo "Validating Terraform configuration..."
+      - terraform validate
+      
+      - echo "Running Terraform formatting check..."
+      - terraform fmt -check -recursive
+      
+      - echo "Running tflint..."
+      - tflint --init
+      - tflint
+      
+      - echo "Running security scan with Checkov..."
+      - checkov -d . --framework terraform --output json --output-file checkov-report.json || true
+      
+      - echo "Planning Terraform changes..."
+      - terraform plan -out=tfplan -detailed-exitcode
+      - export PLAN_EXIT_CODE=$?
+      - echo "Terraform plan exit code: $PLAN_EXIT_CODE"
+
+  build:
+    commands:
+      - echo "Build phase started on `date`"
+      - cd infra/terraform
+      
+      - echo "Analyzing Terraform plan..."
+      - terraform show -json tfplan > tfplan.json
+      
+      - echo "Generating infrastructure documentation..."
+      - terraform-docs markdown table . > ../../docs/infrastructure.md
+      
+      - |
+        if [ "$PLAN_EXIT_CODE" -eq 2 ]; then
+          echo "Infrastructure changes detected, proceeding with apply..."
+          
+          if [ "$ENVIRONMENT" = "prod" ]; then
+            echo "Production deployment requires manual approval"
+            echo "Saving plan for manual review..."
+            aws s3 cp tfplan s3://${TERRAFORM_STATE_BUCKET}/plans/${PROJECT_NAME}-${ENVIRONMENT}-$(date +%Y%m%d-%H%M%S).tfplan
+            echo "Plan saved to S3 for manual review and approval"
+            exit 0
+          else
+            echo "Applying Terraform changes for $ENVIRONMENT environment..."
+            terraform apply -auto-approve tfplan
+          fi
+        elif [ "$PLAN_EXIT_CODE" -eq 0 ]; then
+          echo "No infrastructure changes detected"
+        else
+          echo "Terraform plan failed with exit code $PLAN_EXIT_CODE"
+          exit 1
+        fi
+      
+      - echo "Generating Terraform outputs..."
+      - terraform output -json > terraform-outputs.json
+      
+      - echo "Updating parameter store with outputs..."
+      - |
+        # Extract key outputs and store in Parameter Store
+        API_GATEWAY_URL=$(terraform output -raw api_gateway_url 2>/dev/null || echo "")
+        LEX_BOT_ID=$(terraform output -raw lex_bot_id 2>/dev/null || echo "")
+        DYNAMODB_TABLE=$(terraform output -raw dynamodb_table_name 2>/dev/null || echo "")
+        S3_BUCKET=$(terraform output -raw s3_bucket_name 2>/dev/null || echo "")
+        
+        if [ ! -z "$API_GATEWAY_URL" ]; then
+          aws ssm put-parameter --name "/voice-assistant/api-gateway-url" --value "$API_GATEWAY_URL" --type "String" --overwrite
+        fi
+        
+        if [ ! -z "$LEX_BOT_ID" ]; then
+          aws ssm put-parameter --name "/voice-assistant/lex-bot-id" --value "$LEX_BOT_ID" --type "String" --overwrite
+        fi
+        
+        if [ ! -z "$DYNAMODB_TABLE" ]; then
+          aws ssm put-parameter --name "/voice-assistant/dynamodb-table" --value "$DYNAMODB_TABLE" --type "String" --overwrite
+        fi
+        
+        if [ ! -z "$S3_BUCKET" ]; then
+          aws ssm put-parameter --name "/voice-assistant/s3-bucket" --value "$S3_BUCKET" --type "String" --overwrite
+        fi
+
+  post_build:
+    commands:
+      - echo "Post-build phase started on `date`"
+      - cd infra/terraform
+      
+      - echo "Running infrastructure tests..."
+      - |
+        # Test API Gateway endpoint
+        API_GATEWAY_URL=$(terraform output -raw api_gateway_url 2>/dev/null || echo "")
+        if [ ! -z "$API_GATEWAY_URL" ]; then
+          echo "Testing API Gateway endpoint..."
+          curl -f "$API_GATEWAY_URL/health" || echo "Health check endpoint not yet available"
+        fi
+      
+      - echo "Generating infrastructure report..."
+      - |
+        cat > ../../infrastructure-report.json << EOF
+        {
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "environment": "$ENVIRONMENT",
+          "terraform_version": "$(terraform version -json | jq -r '.terraform_version')",
+          "plan_exit_code": $PLAN_EXIT_CODE,
+          "commit": "$CODEBUILD_RESOLVED_SOURCE_VERSION",
+          "build_id": "$CODEBUILD_BUILD_ID",
+          "outputs": $(cat terraform-outputs.json),
+          "status": "success"
+        }
+        EOF
+      
+      - echo "Cleaning up sensitive files..."
+      - rm -f terraform.tfvars
+      - rm -f tfplan
+      
+      - echo "Infrastructure deployment completed successfully on `date`"
+
+artifacts:
+  files:
+    - 'infra/terraform/terraform-outputs.json'
+    - 'infrastructure-report.json'
+    - 'docs/infrastructure.md'
+    - 'checkov-report.json'
+  name: terraform-artifacts
+
+reports:
+  security-report:
+    files:
+      - 'checkov-report.json'
+    file-format: 'JSON'
+
+cache:
+  paths:
+    - '/root/.terraform.d/**/*'
+    - 'infra/terraform/.terraform/**/*'

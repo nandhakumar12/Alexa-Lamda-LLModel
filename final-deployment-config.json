@@ -1,0 +1,8 @@
+{
+  "api_url": "https://u4cly0taa7.execute-api.us-east-1.amazonaws.com/prod/chat",
+  "api_id": "u4cly0taa7",
+  "lambda_function": "nandhakumar-ai-assistant-prod",
+  "frontend_file": "nandhakumar-ai-production.html",
+  "deployment_time": 1756378082.6517153,
+  "status": "completed"
+}

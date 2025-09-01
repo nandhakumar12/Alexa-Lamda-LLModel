@@ -123,14 +123,6 @@ resource "aws_cloudwatch_log_group" "llm_lambda_logs" {
 resource "aws_api_gateway_rest_api" "llm_api" {
   name        = "voice-assistant-llm-api"
   description = "API Gateway for LLM-powered Voice Assistant"
-
-  cors_configuration {
-    allow_credentials = false
-    allow_headers     = ["content-type", "x-amz-date", "authorization", "x-api-key"]
-    allow_methods     = ["GET", "POST", "OPTIONS"]
-    allow_origins     = ["*"]
-    max_age          = 86400
-  }
 }
 
 # API Gateway resource

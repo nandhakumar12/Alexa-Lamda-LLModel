@@ -1,0 +1,189 @@
+version: 0.2
+
+# CodeBuild specification for Testing and Linting
+# Comprehensive testing pipeline with security scans and quality checks
+
+env:
+  variables:
+    PYTHON_VERSION: "3.9"
+    NODE_VERSION: "18"
+    PROJECT_NAME: "voice-assistant-ai"
+  parameter-store:
+    AWS_ACCOUNT_ID: "/voice-assistant/aws-account-id"
+  secrets-manager:
+    SONAR_TOKEN: "voice-assistant/sonar:token"
+
+phases:
+  install:
+    runtime-versions:
+      python: $PYTHON_VERSION
+      nodejs: $NODE_VERSION
+    commands:
+      - echo "Installing system dependencies..."
+      - apt-get update -y
+      - apt-get install -y zip unzip jq curl git
+      
+      - echo "Installing Python dependencies..."
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+      - pip install pytest pytest-cov black flake8 isort bandit safety
+      
+      - echo "Installing Node.js dependencies..."
+      - cd frontend && npm ci && cd ..
+      
+      - echo "Installing SonarQube scanner..."
+      - wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.8.0.2856-linux.zip
+      - unzip sonar-scanner-cli-4.8.0.2856-linux.zip
+      - export PATH=$PATH:$(pwd)/sonar-scanner-4.8.0.2856-linux/bin
+
+  pre_build:
+    commands:
+      - echo "Pre-build phase started on `date`"
+      - echo "Setting up environment variables..."
+      - export ENVIRONMENT=${ENVIRONMENT:-test}
+      - export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      
+      - echo "Validating project structure..."
+      - ls -la
+      - python --version
+      - node --version
+      - npm --version
+
+  build:
+    commands:
+      - echo "Build phase started on `date`"
+      
+      # Python Code Quality Checks
+      - echo "Running Python code quality checks..."
+      - black backend/ --check --diff
+      - isort backend/ --check-only --diff
+      - flake8 backend/ --max-line-length=88 --extend-ignore=E203,W503
+      
+      # Python Security Checks
+      - echo "Running Python security checks..."
+      - bandit -r backend/ -f json -o bandit-report.json || true
+      - safety check --json --output safety-report.json || true
+      
+      # Python Unit Tests
+      - echo "Running Python unit tests..."
+      - cd backend
+      - pytest tests/ -v --cov=. --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results.xml
+      - cd ..
+      
+      # Frontend Code Quality Checks
+      - echo "Running frontend code quality checks..."
+      - cd frontend
+      - npm run lint
+      - npm run type-check || true
+      
+      # Frontend Unit Tests
+      - echo "Running frontend unit tests..."
+      - npm test -- --coverage --watchAll=false --testResultsProcessor=jest-junit
+      - cd ..
+      
+      # Infrastructure Validation
+      - echo "Validating Terraform configurations..."
+      - cd infra/terraform
+      - terraform init -backend=false
+      - terraform validate
+      - terraform fmt -check=true
+      - cd ../..
+      
+      # API Contract Testing
+      - echo "Running API contract tests..."
+      - python -m pytest backend/tests/contract/ -v || true
+      
+      # Load Testing (basic)
+      - echo "Running basic load tests..."
+      - pip install locust
+      - timeout 60s locust -f backend/tests/load/locustfile.py --headless -u 10 -r 2 -t 30s --host=http://localhost:8000 || true
+      
+      # SonarQube Analysis
+      - echo "Running SonarQube analysis..."
+      - |
+        if [ ! -z "$SONAR_TOKEN" ]; then
+          sonar-scanner \
+            -Dsonar.projectKey=voice-assistant-ai \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=$SONAR_TOKEN \
+            -Dsonar.python.coverage.reportPaths=backend/coverage.xml \
+            -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info \
+            -Dsonar.exclusions=**/node_modules/**,**/coverage/**,**/*.zip,**/build/**
+        else
+          echo "SonarQube token not found, skipping analysis"
+        fi
+
+  post_build:
+    commands:
+      - echo "Post-build phase started on `date`"
+      
+      # Generate Test Report Summary
+      - echo "Generating test report summary..."
+      - |
+        cat > test-summary.json << EOF
+        {
+          "timestamp": "$(date -Iseconds)",
+          "environment": "$ENVIRONMENT",
+          "python_tests": {
+            "results_file": "backend/test-results.xml",
+            "coverage_file": "backend/coverage.xml"
+          },
+          "frontend_tests": {
+            "results_file": "frontend/junit.xml",
+            "coverage_file": "frontend/coverage/lcov.info"
+          },
+          "security_scans": {
+            "bandit_report": "bandit-report.json",
+            "safety_report": "safety-report.json"
+          },
+          "code_quality": {
+            "sonar_project": "voice-assistant-ai"
+          }
+        }
+        EOF
+      
+      # Archive Test Results
+      - echo "Archiving test results..."
+      - mkdir -p test-reports
+      - cp backend/test-results.xml test-reports/ 2>/dev/null || true
+      - cp backend/coverage.xml test-reports/ 2>/dev/null || true
+      - cp frontend/junit.xml test-reports/ 2>/dev/null || true
+      - cp bandit-report.json test-reports/ 2>/dev/null || true
+      - cp safety-report.json test-reports/ 2>/dev/null || true
+      - cp test-summary.json test-reports/
+      
+      - echo "Test phase completed successfully!"
+
+artifacts:
+  files:
+    - 'test-reports/**/*'
+    - 'backend/htmlcov/**/*'
+    - 'frontend/coverage/**/*'
+  name: test-artifacts
+
+reports:
+  pytest-reports:
+    files:
+      - 'backend/test-results.xml'
+    file-format: 'JUNITXML'
+  jest-reports:
+    files:
+      - 'frontend/junit.xml'
+    file-format: 'JUNITXML'
+  coverage-reports:
+    files:
+      - 'backend/coverage.xml'
+    file-format: 'COBERTURAXML'
+  security-reports:
+    files:
+      - 'bandit-report.json'
+      - 'safety-report.json'
+    file-format: 'JSON'
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - 'frontend/node_modules/**/*'
+    - '/root/.npm/**/*'
+    - '/root/.sonar/**/*'

@@ -138,7 +138,7 @@ export const VoiceProvider: React.FC<VoiceProviderProps> = ({ children }) => {
       command: 'stop listening',
       callback: () => {
         stopListening();
-        toast.info('Stopped listening');
+        toast.success('Stopped listening');
       },
     },
     {
@@ -174,7 +174,7 @@ export const VoiceProvider: React.FC<VoiceProviderProps> = ({ children }) => {
   // Stop listening
   const stopListening = useCallback(() => {
     SpeechRecognition.stopListening();
-    toast.info('Stopped listening');
+    toast.success('Stopped listening');
   }, []);
 
   // Reset transcript

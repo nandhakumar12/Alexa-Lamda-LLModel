@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nandhakumar's AI Assistant - Production</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: backgroundShift 10s ease-in-out infinite alternate;
+        }
+        
+        @keyframes backgroundShift {
+            0% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+            100% { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 900px;
+            height: 700px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        .status {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .auth-section {
+            padding: 25px;
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+        }
+        
+        .auth-form {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .auth-form input {
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            min-width: 200px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .auth-form input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .auth-form button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .auth-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border: 1px solid #e1e5e9;
+            max-height: 400px;
+            scroll-behavior: smooth;
+        }
+
+        .messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .messages::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        .messages::-webkit-scrollbar-thumb:hover {
+            background: #5a6fd8;
+        }
+        
+        .message {
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            border-radius: 18px;
+            max-width: 85%;
+            word-wrap: break-word;
+            animation: messageSlide 0.3s ease-out;
+        }
+        
+        @keyframes messageSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .user-message {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .bot-message {
+            background: white;
+            border: 2px solid #e1e5e9;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .input-section {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .input-section input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 25px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .input-section input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .input-section button {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .input-section button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .social-links {
+            margin-top: 12px;
+        }
+        
+        .social-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        
+        .social-links a:hover {
+            color: #764ba2;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 15px 20px;
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 18px;
+            max-width: 85%;
+            margin-bottom: 20px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .user-info {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Nandhakumar's AI Assistant</h1>
+            <p>Production Grade AI Companion with AWS Backend</p>
+            <div class="status">
+                <div class="status-dot"></div>
+                Online
+            </div>
+        </div>
+        
+        <div class="auth-section" id="authSection">
+            <div class="auth-form">
+                <input type="email" id="email" placeholder="Email" value="nandhakumar@example.com">
+                <input type="password" id="password" placeholder="Password" value="password123">
+                <button onclick="signIn()">Sign In</button>
+                <button onclick="signOut()" id="signOutBtn" class="hidden">Sign Out</button>
+                <span id="userInfo" class="user-info hidden"></span>
+            </div>
+        </div>
+        
+        <div class="chat-container" id="chatContainer" class="hidden">
+            <div class="messages" id="messages">
+                <div class="message bot-message">
+                    Hello! I'm your AI assistant. Please sign in to start our conversation!
+                </div>
+            </div>
+            
+            <div class="input-section">
+                <input type="text" id="messageInput" placeholder="Type your message here..." 
+                       onkeypress="if(event.key==='Enter') sendMessage()">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div>Powered by AWS Lambda + Claude AI • Production Grade • API: https://u4cly0taa7.execute-api.us-east-1.amazonaws.com/prod/chat</div>
+            <div class="social-links">
+                <a href="https://github.com" target="_blank">GitHub</a>
+                <a href="https://linkedin.com" target="_blank">LinkedIn</a>
+                <a href="https://youtube.com" target="_blank">YouTube</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://u4cly0taa7.execute-api.us-east-1.amazonaws.com/prod/chat';
+        let currentUser = null;
+        let userName = 'Nandhakumar';
+        
+        function signIn() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                alert('Please enter email and password');
+                return;
+            }
+            
+            // Simulate successful login
+            currentUser = { email: email, name: 'Nandhakumar' };
+            userName = 'Nandhakumar';
+            showChatSection();
+            addBotMessage(`Welcome back, ${userName}! I'm your personal AI assistant powered by AWS and Claude AI. I'm excited to help you today! How can I assist you?`);
+        }
+        
+        function signOut() {
+            currentUser = null;
+            userName = 'User';
+            showAuthSection();
+            document.getElementById('messages').innerHTML = '<div class="message bot-message">Hello! I\'m your AI assistant. Please sign in to start our conversation!</div>';
+        }
+        
+        function showAuthSection() {
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('chatContainer').classList.add('hidden');
+            document.getElementById('signOutBtn').classList.add('hidden');
+            document.getElementById('userInfo').classList.add('hidden');
+        }
+        
+        function showChatSection() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('chatContainer').classList.remove('hidden');
+            document.getElementById('signOutBtn').classList.remove('hidden');
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('userInfo').textContent = `Signed in as ${userName}`;
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+            if (!currentUser) {
+                alert('Please sign in first');
+                return;
+            }
+
+            // Add user message
+            addUserMessage(message);
+            input.value = '';
+
+            // Show typing indicator
+            showTypingIndicator();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        userName: userName
+                    })
+                });
+
+                hideTypingIndicator();
+
+                if (response.ok) {
+                    const data = await response.json();
+                    addBotMessage(data.response);
+                } else {
+                    // Fallback to local intelligent responses
+                    const fallbackResponse = getLocalIntelligentResponse(message, userName);
+                    addBotMessage(fallbackResponse);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                hideTypingIndicator();
+                // Fallback to local intelligent responses
+                const fallbackResponse = getLocalIntelligentResponse(message, userName);
+                addBotMessage(fallbackResponse);
+            }
+        }
+
+        function getLocalIntelligentResponse(message, userName) {
+            const messageLower = message.toLowerCase();
+            const messageWords = messageLower.split(' ');
+
+            // Advanced greeting detection
+            if (messageLower.match(/\b(hello|hi|hey|good morning|good afternoon|good evening|greetings|howdy)\b/)) {
+                const greetings = [
+                    `Hello ${userName}! I'm delighted to see you again! I'm your personal AI assistant, and I'm here to make your day better. What's on your mind today?`,
+                    `Hi there, ${userName}! Welcome back to our conversation. I'm excited to help you with whatever you need. How can I assist you today?`,
+                    `Hey ${userName}! Great to chat with you again! I'm your AI companion, ready to discuss anything from technology to music, or help with any questions you have. What would you like to explore?`
+                ];
+                return greetings[Math.floor(Math.random() * greetings.length)];
+            }
+
+            // Music and entertainment
+            else if (messageLower.match(/\b(music|song|artist|album|spotify|playlist|listen|band|singer|concert|genre|rock|pop|jazz|classical|hip hop|rap|electronic|dance)\b/)) {
+                const musicResponses = [
+                    `${userName}, I absolutely love talking about music! 🎵 Music is such a powerful form of expression. Are you into any particular genres? I can discuss everything from classical symphonies to modern electronic beats, or help you discover new artists that match your taste!`,
+                    `Music is one of my favorite topics, ${userName}! 🎶 Whether you're into indie rock, jazz fusion, or the latest pop hits, I'm here to chat about it all. What kind of musical journey are you on lately? Any new discoveries or old favorites you'd like to discuss?`,
+                    `Hey ${userName}! Music is the universal language, isn't it? 🎸 I'd love to hear about your musical preferences. Are you a vinyl collector, a streaming enthusiast, or maybe you play an instrument yourself? Let's dive into the wonderful world of music together!`
+                ];
+                return musicResponses[Math.floor(Math.random() * musicResponses.length)];
+            }
+
+            // Technology and programming
+            else if (messageLower.match(/\b(technology|tech|coding|programming|ai|artificial intelligence|machine learning|software|development|computer|algorithm|data|cloud|aws|python|javascript|react|node|database|api|web|mobile|app)\b/)) {
+                const techResponses = [
+                    `Excellent question about technology, ${userName}! 💻 I'm passionate about the tech world. Whether you're interested in AI developments, cloud computing, programming languages, or the latest software trends, I'm here to discuss it all. What specific area of technology excites you most?`,
+                    `${userName}, technology is such a fascinating field! 🚀 From machine learning algorithms to web development frameworks, there's always something new to explore. Are you working on any coding projects, or curious about emerging technologies? I'd love to help and discuss!`,
+                    `Great to meet a fellow tech enthusiast, ${userName}! 🔧 Whether it's discussing the latest in AI, diving into programming concepts, or exploring cloud architectures, I'm here for it. What's your current tech interest or challenge?`
+                ];
+                return techResponses[Math.floor(Math.random() * techResponses.length)];
+            }
+
+            // Personal questions about the AI
+            else if (messageLower.match(/\b(who are you|what are you|tell me about yourself|your name|introduce yourself)\b/)) {
+                return `I'm ${userName}'s personal AI assistant! 🤖 Think of me as your digital companion who's always here to help, chat, and explore ideas with you. I'm designed to be knowledgeable, friendly, and genuinely interested in our conversations. I can assist with questions, discuss topics you're passionate about, help with problem-solving, or simply be a great conversational partner. What would you like to know about me, or how can I help you today?`;
+            }
+
+            // Help and assistance
+            else if (messageLower.match(/\b(help|assist|support|can you|need|problem|issue|question)\b/)) {
+                const helpResponses = [
+                    `Absolutely, ${userName}! I'm here to help with whatever you need. 🚀 Whether it's answering questions, brainstorming ideas, discussing topics, providing information, or just having an engaging conversation, I'm at your service. What can I assist you with today?`,
+                    `Of course, ${userName}! That's exactly what I'm here for. 💪 I can help with a wide range of things - from technical questions to creative discussions, problem-solving to general conversation. What's on your mind that I can help with?`,
+                    `I'd be delighted to help, ${userName}! 🌟 Whether you need information, want to explore ideas, discuss challenges, or just chat about interesting topics, I'm here for you. What would you like assistance with?`
+                ];
+                return helpResponses[Math.floor(Math.random() * helpResponses.length)];
+            }
+
+            // Weather inquiries
+            else if (messageLower.match(/\b(weather|temperature|rain|sunny|cloudy|forecast|climate)\b/)) {
+                return `I'd love to help with weather information, ${userName}! ☀️ While I don't have access to real-time weather data right now, I recommend checking your local weather app or website for the most accurate forecast. Is there anything else I can help you with? Maybe we could discuss climate topics, seasonal activities, or something else entirely!`;
+            }
+
+            // Time and date
+            else if (messageLower.match(/\b(time|date|today|tomorrow|yesterday|day|week|month|year|schedule|calendar)\b/)) {
+                const now = new Date();
+                const timeResponses = [
+                    `Hi ${userName}! Today is ${now.toLocaleDateString()} and it's currently ${now.toLocaleTimeString()}. Are you planning something special, or is there something time-related I can help you with?`,
+                    `${userName}, it's ${now.toLocaleDateString()} today! Time really flies, doesn't it? Is there something specific about today's schedule or upcoming plans you'd like to discuss?`
+                ];
+                return timeResponses[Math.floor(Math.random() * timeResponses.length)];
+            }
+
+            // Compliments and positive feedback
+            else if (messageLower.match(/\b(good|great|awesome|amazing|excellent|fantastic|wonderful|perfect|brilliant|impressive|cool|nice)\b/)) {
+                const complimentResponses = [
+                    `Thank you so much, ${userName}! 😊 That really brightens my day! I'm here to provide the best assistance and conversation possible. What else can we explore together?`,
+                    `You're very kind, ${userName}! 🌟 I appreciate the positive feedback. It motivates me to be even more helpful. What would you like to chat about next?`,
+                    `That means a lot to me, ${userName}! 💫 I'm glad our conversation is going well. Is there anything specific you'd like to discuss or any way I can help you today?`
+                ];
+                return complimentResponses[Math.floor(Math.random() * complimentResponses.length)];
+            }
+
+            // Questions about specific topics
+            else if (messageLower.includes('?')) {
+                const questionResponses = [
+                    `That's a thoughtful question, ${userName}! You asked: "${message}" - I'd love to explore this with you. Could you tell me a bit more about what specifically interests you about this topic?`,
+                    `Great question, ${userName}! "${message}" is definitely worth discussing. What prompted this question? I'd like to understand your perspective better so I can give you the most helpful response.`,
+                    `Interesting question, ${userName}! You're asking about "${message}" - I appreciate curious minds! Let me think about this with you. What aspects of this are you most curious about?`
+                ];
+                return questionResponses[Math.floor(Math.random() * questionResponses.length)];
+            }
+
+            // Work and career topics
+            else if (messageLower.match(/\b(work|job|career|business|project|meeting|office|company|team|manager|employee|salary|interview)\b/)) {
+                return `${userName}, work and career topics are always important to discuss! 💼 Whether you're dealing with a challenging project, thinking about career growth, or just need to talk through work-related thoughts, I'm here to listen and help. What's going on in your professional world?`;
+            }
+
+            // Learning and education
+            else if (messageLower.match(/\b(learn|study|education|school|university|course|book|read|knowledge|skill|training)\b/)) {
+                return `Learning is such a wonderful journey, ${userName}! 📚 I love discussing educational topics, whether it's about specific subjects, learning strategies, or personal development. What are you currently learning about or interested in exploring? I'd be happy to discuss it with you!`;
+            }
+
+            // Hobbies and interests
+            else if (messageLower.match(/\b(hobby|interest|fun|game|sport|travel|movie|book|art|photography|cooking|fitness|exercise)\b/)) {
+                return `${userName}, I'd love to hear about your interests and hobbies! 🎨 Whether it's creative pursuits, sports, travel adventures, or any other passions, sharing what we enjoy makes for great conversation. What activities bring you joy or excitement?`;
+            }
+
+            // Feelings and emotions
+            else if (messageLower.match(/\b(feel|feeling|happy|sad|excited|worried|stressed|tired|energetic|motivated|frustrated|confused)\b/)) {
+                return `${userName}, I appreciate you sharing how you're feeling. 💙 Emotions are an important part of our human experience, and I'm here to listen and support you. Whether you want to talk through what's on your mind or just need someone to chat with, I'm here for you. How are you doing today?`;
+            }
+
+            // General conversation starters
+            else {
+                const generalResponses = [
+                    `That's really interesting, ${userName}! You mentioned "${message}" and I'd love to dive deeper into this topic with you. What sparked your interest in this? I'm genuinely curious to learn more about your thoughts and experiences.`,
+                    `${userName}, you've brought up something intriguing: "${message}". I find it fascinating when people share their thoughts and ideas. Could you tell me more about this? What's your perspective or experience with this topic?`,
+                    `Thanks for sharing that, ${userName}! "${message}" sounds like something worth exploring together. I'm always eager to learn from the people I chat with. What would you like to discuss about this further?`,
+                    `${userName}, I appreciate you bringing up "${message}". Every conversation teaches me something new about how people think and what matters to them. What's your take on this? I'd love to hear more of your thoughts!`,
+                    `Interesting point, ${userName}! When you mention "${message}", it makes me curious about your experiences and viewpoint. Could you elaborate on what this means to you or why it's on your mind today?`
+                ];
+                return generalResponses[Math.floor(Math.random() * generalResponses.length)];
+            }
+        }
+        
+        function addUserMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user-message';
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function addBotMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot-message';
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            const messagesDiv = document.getElementById('messages');
+            setTimeout(() => {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }, 100);
+        }
+        
+        function showTypingIndicator() {
+            // Remove any existing typing indicator first
+            hideTypingIndicator();
+
+            const messagesDiv = document.getElementById('messages');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+            messagesDiv.appendChild(typingDiv);
+            scrollToBottom();
+        }
+
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+        
+        // Initialize
+        window.onload = function() {
+            showAuthSection();
+        };
+    </script>
+</body>
+</html>

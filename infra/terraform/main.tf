@@ -152,18 +152,66 @@ module "s3" {
   tags = local.common_tags
 }
 
+# CI/CD Pipeline Module
+module "cicd" {
+  source = "./modules/cicd"
+
+  name_prefix = local.name_prefix
+  environment = var.environment
+  suffix      = random_string.suffix.result
+
+  # GitHub configuration (optional)
+  github_owner  = var.github_owner
+  github_repo   = var.github_repo
+  github_branch = var.github_branch
+
+  # Notification settings
+  notification_email     = var.notification_email
+  enable_manual_approval = var.enable_manual_approval
+
+  tags = local.common_tags
+}
+
+# AWS Services Integration Module
+module "aws_services" {
+  source = "./modules/aws-services"
+
+  name_prefix = local.name_prefix
+  environment = var.environment
+  aws_region  = var.aws_region
+
+  # Lambda function ARNs for Step Functions
+  voice_processing_lambda_arn     = module.lambda.chatbot_lambda_arn
+  intent_analysis_lambda_arn      = module.lambda.chatbot_lambda_arn
+  music_service_lambda_arn        = module.lambda.chatbot_lambda_arn
+  weather_service_lambda_arn      = module.lambda.chatbot_lambda_arn
+  llm_service_lambda_arn          = module.lambda.chatbot_lambda_arn
+  response_generation_lambda_arn  = module.lambda.chatbot_lambda_arn
+  logging_lambda_arn              = module.lambda.monitoring_lambda_arn
+  error_handler_lambda_arn        = module.lambda.monitoring_lambda_arn
+
+  # Monitoring configuration
+  chatbot_function_name = module.lambda.chatbot_lambda_name
+  api_gateway_name      = "voice-assistant-ai-api"
+
+  # Notification settings
+  alert_email = var.notification_email
+
+  tags = local.common_tags
+}
+
 # CloudWatch Log Groups
 resource "aws_cloudwatch_log_group" "api_gateway" {
   name              = "/aws/apigateway/${local.name_prefix}"
   retention_in_days = var.log_retention_days
-  
+
   tags = local.common_tags
 }
 
 resource "aws_cloudwatch_log_group" "lex" {
   name              = "/aws/lex/${local.name_prefix}"
   retention_in_days = var.log_retention_days
-  
+
   tags = local.common_tags
 }
 

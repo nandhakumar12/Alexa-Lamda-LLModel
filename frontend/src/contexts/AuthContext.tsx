@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         case 'signOut':
           console.log('User signed out');
           setUser(null);
-          toast.info('Signed out successfully');
+          toast.success('Signed out successfully');
           break;
           
         case 'signIn_failure':

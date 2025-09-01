@@ -1,0 +1,22 @@
+{
+  "name": "ai-chat-lambda",
+  "version": "1.0.0",
+  "description": "AI Chat Lambda function for Nandhakumar's AI Assistant",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1490.0"
+  },
+  "keywords": [
+    "aws",
+    "lambda",
+    "ai",
+    "chat",
+    "bedrock",
+    "claude"
+  ],
+  "author": "Nandhakumar",
+  "license": "MIT"
+}

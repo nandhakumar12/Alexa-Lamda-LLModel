@@ -1,0 +1,18 @@
+{
+  "lambda_error": "An error occurred (ResourceNotFoundException) when calling the GetFunction operation: Function not found: arn:aws:lambda:us-east-1:266833219725:function:voice-assistant-chatbot",
+  "api_gateway": {
+    "id": "4po6882mz6",
+    "name": "voice-assistant-fixed-1756273629",
+    "description": "Voice Assistant API with proper CORS",
+    "createdDate": "2025-08-27 11:17:12+05:30",
+    "apiKeySource": "HEADER",
+    "endpointConfiguration": {
+      "types": [
+        "REGIONAL"
+      ],
+      "ipAddressType": "ipv4"
+    },
+    "disableExecuteApiEndpoint": false,
+    "rootResourceId": "e018zwlb43"
+  }
+}

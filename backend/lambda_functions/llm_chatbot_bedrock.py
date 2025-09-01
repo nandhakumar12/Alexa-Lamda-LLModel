@@ -24,6 +24,18 @@ def lambda_handler(event, context):
     Advanced LLM-powered chatbot handler using AWS Bedrock Claude Haiku
     """
     try:
+        # Handle CORS preflight requests
+        if event.get('httpMethod') == 'OPTIONS' or event.get('requestContext', {}).get('http', {}).get('method') == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                    'Access-Control-Allow-Methods': 'OPTIONS, POST, GET'
+                },
+                'body': ''
+            }
+
         # Parse the incoming request
         if isinstance(event.get('body'), str):
             body = json.loads(event['body'])
