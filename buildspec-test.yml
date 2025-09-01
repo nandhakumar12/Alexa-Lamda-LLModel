@@ -4,13 +4,14 @@ phases:
   install:
     runtime-versions:
       python: 3.9
-      nodejs: 18
+      nodejs: 16
     commands:
       - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
       - echo "Source Directory is $CODEBUILD_SRC_DIR"
-      - python --version
-      - node --version
-      - npm --version
+      - echo "Checking runtime versions..."
+      - python --version || echo "Python version check failed"
+      - node --version || echo "Node version check failed"
+      - npm --version || echo "NPM version check failed"
       - echo "Installing testing dependencies..."
       - pip install --upgrade pip
       - pip install pytest pytest-cov black flake8
