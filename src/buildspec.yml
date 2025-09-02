@@ -43,6 +43,8 @@ phases:
       - mkdir -p artifacts/backend artifacts/frontend
       - 'if [ -d backend/lambda_functions ]; then cp -r backend/lambda_functions artifacts/backend; else echo "No backend to copy"; fi'
       - 'if [ -d "$FRONTEND_DIR/build" ]; then cp -r "$FRONTEND_DIR/build" artifacts/frontend; else echo "No frontend build to copy"; exit 1; fi'
+      - echo "Copying buildspec files to artifacts..."
+      - cp buildspec*.yml artifacts/ || echo "No buildspec files to copy"
       - ls -la artifacts || true
       - ls -la artifacts/frontend || true
   post_build:

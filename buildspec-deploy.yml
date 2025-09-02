@@ -17,13 +17,13 @@ phases:
       - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
       - pwd
       - ls -la
-      - echo "Checking for buildspec files..."
-      - ls -la buildspec*.yml || echo "No buildspec files found in current directory"
-      - find . -name "buildspec*.yml" -type f || echo "No buildspec files found anywhere"
-      - echo "Checking for source artifacts..."
-      - ls -la $CODEBUILD_SRC_DIR || echo "Source directory not found"
       - echo "Checking for build artifacts..."
-      - ls -la $CODEBUILD_SRC_DIR_* || echo "Build artifacts not found"
+      - ls -la artifacts/ || echo "No artifacts directory found in current location"
+      - find . -name "artifacts" -type d || echo "No artifacts directory found anywhere"
+      - echo "Checking for backend artifacts..."
+      - find . -path "*/artifacts/backend" -type d || echo "No backend artifacts found"
+      - echo "Checking for frontend artifacts..."
+      - find . -path "*/artifacts/frontend" -type d || echo "No frontend artifacts found"
 
   build:
     commands:
