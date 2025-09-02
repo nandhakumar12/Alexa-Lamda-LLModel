@@ -1,0 +1,59 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+      nodejs: 16
+    commands:
+      - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
+      - echo "Source Directory is $CODEBUILD_SRC_DIR"
+      - echo "Checking runtime versions..."
+      - python --version || echo "Python version check failed"
+      - node --version || echo "Node version check failed"
+      - npm --version || echo "NPM version check failed"
+      - echo "Installing base dependencies..."
+      - pip install --upgrade pip
+  pre_build:
+    commands:
+      - echo "Starting pre-build phase..."
+      - echo "Environment is $ENVIRONMENT"
+      - echo "Current directory is $CODEBUILD_SRC_DIR"
+      - pwd
+      - ls -la
+  build:
+    commands:
+      - echo "Starting build phase..."
+      - echo "Installing Python dependencies (backend)..."
+      - ls -la backend/lambda_functions/ || echo "Backend lambda_functions directory not found"
+      - 'if [ -f backend/lambda_functions/requirements.txt ]; then pip install -r backend/lambda_functions/requirements.txt; else echo "No backend requirements.txt found"; fi'
+      - echo "Resolving frontend directory by scanning for public/index.html..."
+      - 'FOUND=$(find . -maxdepth 5 -type f -path "*/public/index.html" | head -n1); if [ -n "$FOUND" ]; then FRONTEND_DIR=$(dirname $(dirname "$FOUND")); echo "Detected FRONTEND_DIR => $FRONTEND_DIR (from $FOUND)"; else echo "No public/index.html found; trying known app roots"; if [ -d frontend/src ] && [ -f frontend/package.json ]; then FRONTEND_DIR="frontend"; elif [ -d src ] && [ -f package.json ]; then FRONTEND_DIR="."; elif [ -d fresh-frontend/src ] && [ -f fresh-frontend/package.json ]; then FRONTEND_DIR="fresh-frontend"; else echo "ERROR - Could not locate React app (expected frontend/src or src with package.json)"; find . -maxdepth 3 -type d -print; exit 1; fi; echo "Using fallback FRONTEND_DIR => $FRONTEND_DIR"; fi'
+      - 'if [ ! -f "$FRONTEND_DIR/public/index.html" ]; then echo "public/index.html missing in $FRONTEND_DIR; generating minimal file"; mkdir -p "$FRONTEND_DIR/public"; printf "<!DOCTYPE html>\\n<html lang=\"en\"><head><meta charset=\"utf-8\"/><title>App</title></head><body><div id=\"root\"></div></body></html>" > "$FRONTEND_DIR/public/index.html"; fi'
+      - ls -la "$FRONTEND_DIR" || true
+      - ls -la "$FRONTEND_DIR/public" || true
+      - echo "Installing Node.js dependencies..."
+      - cd "$FRONTEND_DIR"
+      - npm ci
+      - echo "Building frontend..."
+      - export CI=true; export GENERATE_SOURCEMAP=false; export NODE_OPTIONS="--max-old-space-size=4096"; export ESLINT_NO_DEV_ERRORS=true; npm run build
+      - ls -la build || echo "Build directory not created"
+      - cd -
+      - echo "Creating artifacts bundle..."
+      - mkdir -p artifacts/backend artifacts/frontend
+      - 'if [ -d backend/lambda_functions ]; then cp -r backend/lambda_functions artifacts/backend; else echo "No backend to copy"; fi'
+      - 'if [ -d "$FRONTEND_DIR/build" ]; then cp -r "$FRONTEND_DIR/build" artifacts/frontend; else echo "No frontend build to copy"; exit 1; fi'
+      - ls -la artifacts || true
+      - ls -la artifacts/frontend || true
+  post_build:
+    commands:
+      - echo "Starting post-build phase..."
+      - echo "Build completed on $(date)"
+      - ls -la artifacts || true
+      - ls -la artifacts/backend || true
+      - ls -la artifacts/frontend || true
+      - echo "Post-build phase complete"
+artifacts:
+  files:
+    - '**/*'
+  base-directory: artifacts

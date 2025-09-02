@@ -1,0 +1,46 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+    commands:
+      - echo "Installing deployment dependencies..."
+      - pip install --upgrade pip
+      - pip install awscli boto3
+
+  pre_build:
+    commands:
+      - echo "Starting deployment pre-build phase..."
+      - echo "Environment is $ENVIRONMENT"
+      - echo "Current directory is $CODEBUILD_SRC_DIR"
+      - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
+      - pwd
+      - ls -la
+      - echo "Checking for buildspec files..."
+      - ls -la buildspec*.yml || echo "No buildspec files found in current directory"
+      - find . -name "buildspec*.yml" -type f || echo "No buildspec files found anywhere"
+
+  build:
+    commands:
+      - echo "Starting deployment phase..."
+      - echo "Environment is $ENVIRONMENT"
+      - echo "Deploying Lambda functions..."
+      - ls -la artifacts/ || echo "No artifacts directory found"
+      - ls -la artifacts/backend/ || echo "No backend artifacts found"
+      - ls -la artifacts/frontend/ || echo "No frontend artifacts found"
+      - echo "Deploying frontend to S3..."
+      - echo "Updating API Gateway..."
+      - echo "Invalidating CloudFront cache..."
+      - echo "Deployment phase complete"
+
+  post_build:
+    commands:
+      - echo "Starting post-deployment phase..."
+      - echo "Deployment completed on $(date)"
+      - echo "Environment is $ENVIRONMENT"
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: .

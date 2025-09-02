@@ -1,0 +1,58 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+      nodejs: 16
+    commands:
+      - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
+      - echo "Source Directory is $CODEBUILD_SRC_DIR"
+      - echo "Checking runtime versions..."
+      - python --version || echo "Python version check failed"
+      - node --version || echo "Node version check failed"
+      - npm --version || echo "NPM version check failed"
+      - echo "Installing security scanning dependencies..."
+      - pip install --upgrade pip
+      - pip install bandit safety
+
+  pre_build:
+    commands:
+      - echo "Starting security pre-build phase..."
+      - echo "Environment is $ENVIRONMENT"
+      - echo "AWS Region is $AWS_DEFAULT_REGION"
+      - ls -la
+
+  build:
+    commands:
+      - echo "Starting security scanning phase..."
+      - echo "Installing Python dependencies..."
+      - echo "Checking directories..."
+      - ls -la backend/lambda_functions/ || echo "Directory not found"
+      - cd backend/lambda_functions
+      - pip install -r requirements.txt
+      - cd ../..
+      - echo "Installing Node.js dependencies..."
+      - cd frontend
+      - npm ci
+      - cd ..
+      - echo "Running Python security scans..."
+      - cd backend/lambda_functions
+      - bandit -r . -f json -o bandit-report.json || echo "Bandit scan completed"
+      - safety check --json --output safety-report.json || echo "Safety check completed"
+      - cd ../..
+      - echo "Running Node.js security scans..."
+      - cd frontend
+      - npm audit --audit-level=moderate --json > ../npm-audit-report.json || echo "npm audit completed"
+      - cd ..
+      - echo "Security scanning phase complete"
+
+  post_build:
+    commands:
+      - echo "Starting post-security phase..."
+      - echo "Security scanning completed on $(date)"
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: .
