@@ -235,7 +235,7 @@ resource "aws_codebuild_project" "deploy_dev" {
 
   source {
     type      = "CODEPIPELINE"
-    buildspec = "src/buildspec-deploy.yml"
+    buildspec = "buildspec-deploy.yml"
   }
 
   tags = var.tags
@@ -264,7 +264,7 @@ resource "aws_codebuild_project" "deploy_staging" {
 
   source {
     type      = "CODEPIPELINE"
-    buildspec = "src/buildspec-deploy.yml"
+    buildspec = "buildspec-deploy.yml"
   }
 
   tags = var.tags
@@ -293,7 +293,7 @@ resource "aws_codebuild_project" "deploy_prod" {
 
   source {
     type      = "CODEPIPELINE"
-    buildspec = "src/buildspec-deploy.yml"
+    buildspec = "buildspec-deploy.yml"
   }
 
   tags = var.tags
