@@ -32,7 +32,7 @@ phases:
       - echo "Using frontend directory => $FRONTEND_DIR"
       - ls -la "$FRONTEND_DIR" || true
       - ls -la "$FRONTEND_DIR/public" || true
-      - test -f "$FRONTEND_DIR/public/index.html" && echo "Found index.html" || (echo "ERROR: $FRONTEND_DIR/public/index.html missing" && exit 1)
+      - test -f "$FRONTEND_DIR/public/index.html" && echo "Found index.html" || (echo "ERROR - $FRONTEND_DIR/public/index.html missing" && exit 1)
       - ls -la "$FRONTEND_DIR/src" || true
       - echo "Installing Node.js dependencies..."
       - cd "$FRONTEND_DIR"
