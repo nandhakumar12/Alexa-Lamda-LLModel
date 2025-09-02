@@ -29,7 +29,7 @@ phases:
       - 'if [ -f backend/lambda_functions/requirements.txt ]; then pip install -r backend/lambda_functions/requirements.txt; else echo "No backend requirements.txt found"; fi'
       - echo "Resolving frontend directory..."
       - 'FRONTEND_DIR=""; if [ -d frontend ]; then FRONTEND_DIR="frontend"; fi; if [ -d src/frontend ]; then FRONTEND_DIR="src/frontend"; fi; if [ -d src/src/frontend ]; then FRONTEND_DIR="src/src/frontend"; fi; if [ -z "$FRONTEND_DIR" ]; then echo "ERROR: Frontend directory not found"; exit 1; fi'
-      - echo "Using frontend directory: $FRONTEND_DIR"
+      - echo "Using frontend directory => $FRONTEND_DIR"
       - ls -la "$FRONTEND_DIR" || true
       - ls -la "$FRONTEND_DIR/public" || true
       - ls -la "$FRONTEND_DIR/src" || true
