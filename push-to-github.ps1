@@ -1,3 +1,4 @@
+
 # Voice Assistant AI - Push to GitHub Script
 # This script helps push the fixed buildspec files to GitHub
 
@@ -75,3 +76,4 @@ Write-Host "3. Monitor the build process" -ForegroundColor White
 Write-Host "4. Check the build logs for any remaining issues" -ForegroundColor White
 Write-Host ""
 Write-Host "Pipeline URL: https://console.aws.amazon.com/codesuite/codepipeline/pipelines/voice-ai-pipeline/view" -ForegroundColor Cyan
+t check

@@ -8,10 +8,6 @@ phases:
     commands:
       - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
       - echo "Source Directory is $CODEBUILD_SRC_DIR"
-      - echo "Checking runtime versions..."
-      - python --version || echo "Python version check failed"
-      - node --version || echo "Node version check failed"
-      - npm --version || echo "NPM version check failed"
       - echo "Installing dependencies..."
       - pip install --upgrade pip
       - pip install awscli boto3
@@ -21,90 +17,31 @@ phases:
       - echo "Starting pre-build phase..."
       - echo "Current directory is $CODEBUILD_SRC_DIR"
       - echo "Environment is $ENVIRONMENT"
-      - echo "Checking source code structure..."
       - ls -la
-      - echo "Checking if frontend exists in current directory..."
-      - ls -la frontend/ || echo "Frontend not in current directory"
-      - echo "Checking if frontend exists in src directory..."
-      - ls -la src/ || echo "src directory not found"
-      - echo "Checking if frontend exists in src/frontend..."
-      - ls -la src/frontend/ || echo "src/frontend not found"
-      - echo "Checking if frontend exists in src/src/frontend..."
-      - ls -la src/src/frontend/ || echo "src/src/frontend not found"
 
   build:
     commands:
       - echo "Starting build phase..."
-      - echo "Installing Python dependencies..."
-      - echo "Checking backend directory structure..."
+      - echo "Checking directories..."
       - ls -la backend/ || echo "Backend directory not found"
-      - ls -la backend/lambda_functions/ || echo "Backend lambda_functions directory not found"
-      - |
-        if [ -d "backend/lambda_functions" ]; then
-          echo "Backend lambda_functions directory found, installing dependencies..."
-          cd backend/lambda_functions
-          pip install -r requirements.txt
-          cd ../..
-        else
-          echo "Backend lambda_functions not found, skipping Python dependencies"
-        fi
-      - echo "Installing Node.js dependencies..."
-      - echo "Determining frontend directory location..."
-      - FRONTEND_DIR=""
-      - |
-        if [ -d "frontend" ]; then
-          FRONTEND_DIR="frontend"
-          echo "Found frontend in current directory"
-        fi
-      - |
-        if [ -d "src/frontend" ]; then
-          FRONTEND_DIR="src/frontend"
-          echo "Found frontend in src/frontend"
-        fi
-      - |
-        if [ -d "src/src/frontend" ]; then
-          FRONTEND_DIR="src/src/frontend"
-          echo "Found frontend in src/src/frontend"
-        fi
-      - |
-        if [ -z "$FRONTEND_DIR" ]; then
-          echo "ERROR: Frontend directory not found!"
-          exit 1
-        fi
+      - ls -la frontend/ || echo "Frontend directory not found"
+      - echo "Setting up frontend directory..."
+      - FRONTEND_DIR="frontend"
       - echo "Using frontend directory: $FRONTEND_DIR"
-      - echo "Checking frontend structure..."
-      - ls -la $FRONTEND_DIR/ || echo "Frontend directory not accessible"
-      - ls -la $FRONTEND_DIR/public/ || echo "Frontend public directory not found"
-      - ls -la $FRONTEND_DIR/src/ || echo "Frontend src directory not found"
-      - cd $FRONTEND_DIR
+      - cd frontend
       - echo "Installing npm dependencies..."
       - npm ci --silent
       - echo "Building frontend application..."
-      - echo "Setting CI environment for React build..."
       - export CI=true
       - export GENERATE_SOURCEMAP=false
-      - export NODE_OPTIONS="--max-old-space-size=4096"
       - npm run build
       - echo "Checking build output..."
       - ls -la build/ || echo "Build directory not created"
-      - ls -la build/index.html || echo "Build index.html not found"
-      - cd ../..
+      - cd ..
       - echo "Creating artifacts directory..."
       - mkdir -p artifacts
-      - echo "Copying backend artifacts..."
-      - |
-        if [ -d "backend/lambda_functions" ]; then
-          echo "Copying backend lambda functions..."
-          cp -r backend/lambda_functions artifacts/backend
-        else
-          echo "Backend lambda_functions not found, creating empty backend directory"
-          mkdir -p artifacts/backend
-        fi
       - echo "Copying frontend artifacts..."
-      - cp -r $FRONTEND_DIR/build artifacts/frontend || echo "Failed to copy frontend build"
-      - echo "Verifying artifacts..."
-      - ls -la artifacts/ || echo "Artifacts directory issue"
-      - ls -la artifacts/frontend/ || echo "Frontend artifacts issue"
+      - cp -r frontend/build artifacts/frontend || echo "Failed to copy frontend build"
       - echo "Build phase complete"
 
   post_build:
@@ -113,7 +50,6 @@ phases:
       - echo "Build completed on $(date)"
       - echo "Final artifacts verification..."
       - ls -la artifacts/ || echo "No artifacts directory"
-      - ls -la artifacts/backend/ || echo "No backend artifacts"
       - ls -la artifacts/frontend/ || echo "No frontend artifacts"
       - echo "Post-build phase complete"
 
