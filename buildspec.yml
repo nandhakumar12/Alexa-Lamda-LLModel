@@ -50,21 +50,24 @@ phases:
         fi
       - echo "Installing Node.js dependencies..."
       - echo "Determining frontend directory location..."
+      - FRONTEND_DIR=""
       - |
-        FRONTEND_DIR=""
-        if [ -d "frontend" ]; then 
+        if [ -d "frontend" ]; then
           FRONTEND_DIR="frontend"
           echo "Found frontend in current directory"
         fi
-        if [ -d "src/frontend" ]; then 
+      - |
+        if [ -d "src/frontend" ]; then
           FRONTEND_DIR="src/frontend"
           echo "Found frontend in src/frontend"
         fi
-        if [ -d "src/src/frontend" ]; then 
+      - |
+        if [ -d "src/src/frontend" ]; then
           FRONTEND_DIR="src/src/frontend"
           echo "Found frontend in src/src/frontend"
         fi
-        if [ -z "$FRONTEND_DIR" ]; then 
+      - |
+        if [ -z "$FRONTEND_DIR" ]; then
           echo "ERROR: Frontend directory not found!"
           exit 1
         fi
