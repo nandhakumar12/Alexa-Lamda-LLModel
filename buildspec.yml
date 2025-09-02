@@ -39,21 +39,35 @@ phases:
       - echo "Checking backend directory structure..."
       - ls -la backend/ || echo "Backend directory not found"
       - ls -la backend/lambda_functions/ || echo "Backend lambda_functions directory not found"
-      - if [ -d "backend/lambda_functions" ]; then
-      -   echo "Backend lambda_functions directory found, installing dependencies..."
-      -   cd backend/lambda_functions
-      -   pip install -r requirements.txt
-      -   cd ../..
-      - else
-      -   echo "Backend lambda_functions not found, skipping Python dependencies"
-      - fi
+      - |
+        if [ -d "backend/lambda_functions" ]; then
+          echo "Backend lambda_functions directory found, installing dependencies..."
+          cd backend/lambda_functions
+          pip install -r requirements.txt
+          cd ../..
+        else
+          echo "Backend lambda_functions not found, skipping Python dependencies"
+        fi
       - echo "Installing Node.js dependencies..."
       - echo "Determining frontend directory location..."
-      - FRONTEND_DIR=""
-      - if [ -d "frontend" ]; then FRONTEND_DIR="frontend"; echo "Found frontend in current directory"; fi
-      - if [ -d "src/frontend" ]; then FRONTEND_DIR="src/frontend"; echo "Found frontend in src/frontend"; fi
-      - if [ -d "src/src/frontend" ]; then FRONTEND_DIR="src/src/frontend"; echo "Found frontend in src/src/frontend"; fi
-      - if [ -z "$FRONTEND_DIR" ]; then echo "ERROR: Frontend directory not found!"; exit 1; fi
+      - |
+        FRONTEND_DIR=""
+        if [ -d "frontend" ]; then 
+          FRONTEND_DIR="frontend"
+          echo "Found frontend in current directory"
+        fi
+        if [ -d "src/frontend" ]; then 
+          FRONTEND_DIR="src/frontend"
+          echo "Found frontend in src/frontend"
+        fi
+        if [ -d "src/src/frontend" ]; then 
+          FRONTEND_DIR="src/src/frontend"
+          echo "Found frontend in src/src/frontend"
+        fi
+        if [ -z "$FRONTEND_DIR" ]; then 
+          echo "ERROR: Frontend directory not found!"
+          exit 1
+        fi
       - echo "Using frontend directory: $FRONTEND_DIR"
       - echo "Checking frontend structure..."
       - ls -la $FRONTEND_DIR/ || echo "Frontend directory not accessible"
@@ -75,13 +89,14 @@ phases:
       - echo "Creating artifacts directory..."
       - mkdir -p artifacts
       - echo "Copying backend artifacts..."
-      - if [ -d "backend/lambda_functions" ]; then
-      -   echo "Copying backend lambda functions..."
-      -   cp -r backend/lambda_functions artifacts/backend
-      - else
-      -   echo "Backend lambda_functions not found, creating empty backend directory"
-      -   mkdir -p artifacts/backend
-      - fi
+      - |
+        if [ -d "backend/lambda_functions" ]; then
+          echo "Copying backend lambda functions..."
+          cp -r backend/lambda_functions artifacts/backend
+        else
+          echo "Backend lambda_functions not found, creating empty backend directory"
+          mkdir -p artifacts/backend
+        fi
       - echo "Copying frontend artifacts..."
       - cp -r $FRONTEND_DIR/build artifacts/frontend || echo "Failed to copy frontend build"
       - echo "Verifying artifacts..."
