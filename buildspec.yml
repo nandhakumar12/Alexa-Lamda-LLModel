@@ -14,12 +14,12 @@ phases:
       - npm --version || echo "NPM version check failed"
       - echo "Installing base dependencies..."
       - pip install --upgrade pip
-      - pip install awscli boto3
   pre_build:
     commands:
       - echo "Starting pre-build phase..."
       - echo "Environment is $ENVIRONMENT"
       - echo "Current directory is $CODEBUILD_SRC_DIR"
+      - pwd
       - ls -la
   build:
     commands:
@@ -27,13 +27,10 @@ phases:
       - echo "Installing Python dependencies (backend)..."
       - ls -la backend/lambda_functions/ || echo "Backend lambda_functions directory not found"
       - 'if [ -f backend/lambda_functions/requirements.txt ]; then pip install -r backend/lambda_functions/requirements.txt; else echo "No backend requirements.txt found"; fi'
-      - echo "Resolving frontend directory..."
-      - 'if [ -f public/index.html ]; then FRONTEND_DIR="."; elif [ -f frontend/public/index.html ]; then FRONTEND_DIR="frontend"; elif [ -f src/frontend/public/index.html ]; then FRONTEND_DIR="src/frontend"; elif [ -f src/src/frontend/public/index.html ]; then FRONTEND_DIR="src/src/frontend"; else echo "ERROR - public/index.html not found in ., frontend/, src/frontend/, or src/src/frontend/" && exit 1; fi'
-      - echo "Using frontend directory => $FRONTEND_DIR"
+      - echo "Resolving frontend directory by scanning for public/index.html..."
+      - 'FOUND=$(find . -maxdepth 4 -type f -path "*/public/index.html" | head -n1); if [ -n "$FOUND" ]; then FRONTEND_DIR=$(dirname $(dirname "$FOUND")); echo "Detected FRONTEND_DIR => $FRONTEND_DIR (from $FOUND)"; else echo "ERROR - public/index.html not found within depth 4"; ls -la; find . -maxdepth 3 -type d -print; exit 1; fi'
       - ls -la "$FRONTEND_DIR" || true
       - ls -la "$FRONTEND_DIR/public" || true
-      - test -f "$FRONTEND_DIR/public/index.html" && echo "Found index.html" || (echo "ERROR - $FRONTEND_DIR/public/index.html missing" && exit 1)
-      - ls -la "$FRONTEND_DIR/src" || true
       - echo "Installing Node.js dependencies..."
       - cd "$FRONTEND_DIR"
       - npm ci
