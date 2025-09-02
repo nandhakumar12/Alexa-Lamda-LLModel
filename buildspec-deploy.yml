@@ -14,15 +14,22 @@ phases:
       - echo "Starting deployment pre-build phase..."
       - echo "Environment is $ENVIRONMENT"
       - echo "Current directory is $CODEBUILD_SRC_DIR"
+      - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
+      - pwd
       - ls -la
+      - echo "Checking for buildspec files..."
+      - ls -la buildspec*.yml || echo "No buildspec files found in current directory"
+      - find . -name "buildspec*.yml" -type f || echo "No buildspec files found anywhere"
 
   build:
     commands:
       - echo "Starting deployment phase..."
+      - echo "Environment is $ENVIRONMENT"
       - echo "Deploying Lambda functions..."
-      - ls -la *.zip || echo "No zip files found"
+      - ls -la artifacts/ || echo "No artifacts directory found"
+      - ls -la artifacts/backend/ || echo "No backend artifacts found"
+      - ls -la artifacts/frontend/ || echo "No frontend artifacts found"
       - echo "Deploying frontend to S3..."
-      - ls -la frontend/ || echo "Frontend directory not found"
       - echo "Updating API Gateway..."
       - echo "Invalidating CloudFront cache..."
       - echo "Deployment phase complete"
