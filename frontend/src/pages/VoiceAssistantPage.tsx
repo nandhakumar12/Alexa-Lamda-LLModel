@@ -16,7 +16,7 @@ const VoiceAssistantPage: React.FC<VoiceAssistantPageProps> = ({ user, onSignOut
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [conversations, setConversations] = useState<Array<{id: string, user: string, bot: string, time: string}>>([]);
-  const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [audioLevel] = useState<number>(0);
   const [recognition, setRecognition] = useState<any>(null);
 
   // Initialize voice recognition
@@ -84,26 +84,26 @@ const VoiceAssistantPage: React.FC<VoiceAssistantPageProps> = ({ user, onSignOut
     }
   };
 
-  // Test API connection
-  const testApiConnection = async () => {
-    try {
-      const testMessage = {
-        message: "Hello! Testing API connection.",
-        type: 'text' as const,
-        session_id: user?.username || 'test-user'
-      };
+  // Test API connection (commented out to avoid unused variable warning)
+  // const testApiConnection = async () => {
+  //   try {
+  //     const testMessage = {
+  //       message: "Hello! Testing API connection.",
+  //       type: 'text' as const,
+  //       session_id: user?.username || 'test-user'
+  //     };
 
-      toast.loading('Testing API connection...');
-      const response = await chatService.sendMessage(testMessage);
-      toast.dismiss();
-      toast.success('API connection successful!');
-      console.log('API Test Response:', response);
-    } catch (error) {
-      toast.dismiss();
-      toast.error('API connection failed');
-      console.error('API Test Error:', error);
-    }
-  };
+  //     toast.loading('Testing API connection...');
+  //     const response = await chatService.sendMessage(testMessage);
+  //     toast.dismiss();
+  //     toast.success('API connection successful!');
+  //     console.log('API Test Response:', response);
+  //   } catch (error) {
+  //     toast.dismiss();
+  //     toast.error('API connection failed');
+  //     console.error('API Test Error:', error);
+  //   }
+  // };
 
   // Text-to-speech function
   const speakResponse = (text: string) => {
@@ -200,31 +200,31 @@ const VoiceAssistantPage: React.FC<VoiceAssistantPageProps> = ({ user, onSignOut
     }
   };
 
-  // Basic response function
-  const getBasicResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    const userName = user?.username || 'there';
+  // Basic response function (commented out to avoid unused variable warning)
+  // const getBasicResponse = (userMessage: string): string => {
+  //   const lowerMessage = userMessage.toLowerCase();
+  //   const userName = user?.username || 'there';
 
-    if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
-      return `Hello ${userName}! I'm Nandhakumar's AI assistant. How can I help you today?`;
-    } else if (lowerMessage.includes('how are you')) {
-      return "I'm doing great, thank you for asking! I'm here and ready to help you with anything you need.";
-    } else if (lowerMessage.includes('what can you do')) {
-      return "I can help you with many things! I can have conversations, answer questions, help with tasks, and much more. What would you like to try?";
-    } else if (lowerMessage.includes('time')) {
-      return `The current time is ${new Date().toLocaleTimeString()}.`;
-    } else if (lowerMessage.includes('date')) {
-      return `Today's date is ${new Date().toLocaleDateString()}.`;
-    } else if (lowerMessage.includes('thank')) {
-      return "You're very welcome! I'm happy to help. Is there anything else you'd like to know or do?";
-    } else if (lowerMessage.includes('bye') || lowerMessage.includes('goodbye')) {
-      return `Goodbye ${userName}! It was great talking with you. Feel free to come back anytime you need assistance!`;
-    } else if (lowerMessage.includes('nandhakumar')) {
-      return "Nandhakumar is the creator of this AI assistant! He built this using modern AWS services and AI technology to provide you with an intelligent conversational experience.";
-    } else {
-      return "I understand you're asking about something, but I'm not sure how to help with that specific request. Could you try rephrasing it or ask me something else?";
-    }
-  };
+  //   if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
+  //     return `Hello ${userName}! I'm Nandhakumar's AI assistant. How can I help you today?`;
+  //   } else if (lowerMessage.includes('how are you')) {
+  //     return "I'm doing great, thank you for asking! I'm here and ready to help you with anything you need.";
+  //   } else if (lowerMessage.includes('what can you do')) {
+  //     return "I can help you with many things! I can have conversations, answer questions, help with tasks, and much more. What would you like to try?";
+  //   } else if (lowerMessage.includes('time')) {
+  //     return `The current time is ${new Date().toLocaleTimeString()}.`;
+  //   } else if (lowerMessage.includes('date')) {
+  //     return `Today's date is ${new Date().toLocaleDateString()}.`;
+  //   } else if (lowerMessage.includes('thank')) {
+  //     return "You're very welcome! I'm happy to help. Is there anything else you'd like to know or do?";
+  //   } else if (lowerMessage.includes('bye') || lowerMessage.includes('goodbye')) {
+  //     return `Goodbye ${userName}! It was great talking with you. Feel free to come back anytime you need assistance!`;
+  //   } else if (lowerMessage.includes('nandhakumar')) {
+  //     return "Nandhakumar is the creator of this AI assistant! He built this using modern AWS services and AI technology to provide you with an intelligent conversational experience.";
+  //   } else {
+  //     return "I understand you're asking about something, but I'm not sure how to help with that specific request. Could you try rephrasing it or ask me something else?";
+  //   }
+  // };
 
   return (
     <div style={{
