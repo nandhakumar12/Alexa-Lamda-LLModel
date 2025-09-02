@@ -8,52 +8,53 @@ phases:
     commands:
       - echo "CodeBuild Image is $CODEBUILD_BUILD_IMAGE"
       - echo "Source Directory is $CODEBUILD_SRC_DIR"
-      - echo "Installing dependencies..."
+      - echo "Checking runtime versions..."
+      - python --version || echo "Python version check failed"
+      - node --version || echo "Node version check failed"
+      - npm --version || echo "NPM version check failed"
+      - echo "Installing base dependencies..."
       - pip install --upgrade pip
       - pip install awscli boto3
-
   pre_build:
     commands:
       - echo "Starting pre-build phase..."
-      - echo "Current directory is $CODEBUILD_SRC_DIR"
       - echo "Environment is $ENVIRONMENT"
+      - echo "Current directory is $CODEBUILD_SRC_DIR"
       - ls -la
-
   build:
     commands:
       - echo "Starting build phase..."
-      - echo "Checking directories..."
-      - ls -la backend/ || echo "Backend directory not found"
-      - ls -la frontend/ || echo "Frontend directory not found"
-      - echo "Setting up frontend directory..."
-      - FRONTEND_DIR="frontend"
+      - echo "Installing Python dependencies (backend)..."
+      - ls -la backend/lambda_functions/ || echo "Backend lambda_functions directory not found"
+      - if [ -f backend/lambda_functions/requirements.txt ]; then pip install -r backend/lambda_functions/requirements.txt; else echo "No backend requirements.txt found"; fi
+      - echo "Resolving frontend directory..."
+      - FRONTEND_DIR=""; if [ -d frontend ]; then FRONTEND_DIR="frontend"; fi; if [ -d src/frontend ]; then FRONTEND_DIR="src/frontend"; fi; if [ -d src/src/frontend ]; then FRONTEND_DIR="src/src/frontend"; fi; if [ -z "$FRONTEND_DIR" ]; then echo "ERROR: Frontend directory not found"; exit 1; fi
       - echo "Using frontend directory: $FRONTEND_DIR"
-      - cd frontend
-      - echo "Installing npm dependencies..."
-      - npm ci --silent
-      - echo "Building frontend application..."
-      - export CI=true
-      - export GENERATE_SOURCEMAP=false
-      - npm run build
-      - echo "Checking build output..."
-      - ls -la build/ || echo "Build directory not created"
-      - cd ..
-      - echo "Creating artifacts directory..."
-      - mkdir -p artifacts
-      - echo "Copying frontend artifacts..."
-      - cp -r frontend/build artifacts/frontend || echo "Failed to copy frontend build"
-      - echo "Build phase complete"
-
+      - ls -la "$FRONTEND_DIR" || true
+      - ls -la "$FRONTEND_DIR/public" || true
+      - ls -la "$FRONTEND_DIR/src" || true
+      - echo "Installing Node.js dependencies..."
+      - cd "$FRONTEND_DIR"
+      - npm ci
+      - echo "Building frontend..."
+      - export CI=true; export GENERATE_SOURCEMAP=false; export NODE_OPTIONS="--max-old-space-size=4096"; npm run build
+      - ls -la build || echo "Build directory not created"
+      - cd -
+      - echo "Creating artifacts bundle..."
+      - mkdir -p artifacts/backend artifacts/frontend
+      - if [ -d backend/lambda_functions ]; then cp -r backend/lambda_functions artifacts/backend; else echo "No backend to copy"; fi
+      - if [ -d "$FRONTEND_DIR/build" ]; then cp -r "$FRONTEND_DIR/build" artifacts/frontend; else echo "No frontend build to copy"; exit 1; fi
+      - ls -la artifacts || true
+      - ls -la artifacts/frontend || true
   post_build:
     commands:
       - echo "Starting post-build phase..."
       - echo "Build completed on $(date)"
-      - echo "Final artifacts verification..."
-      - ls -la artifacts/ || echo "No artifacts directory"
-      - ls -la artifacts/frontend/ || echo "No frontend artifacts"
+      - ls -la artifacts || true
+      - ls -la artifacts/backend || true
+      - ls -la artifacts/frontend || true
       - echo "Post-build phase complete"
-
 artifacts:
   files:
-    - 'artifacts/**/*'
-  base-directory: .
+    - '**/*'
+  base-directory: artifacts
