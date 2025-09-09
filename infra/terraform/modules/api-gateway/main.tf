@@ -25,25 +25,19 @@ resource "aws_api_gateway_deployment" "main" {
     aws_api_gateway_method.chatbot_post,
     aws_api_gateway_method.auth_post,
     aws_api_gateway_method.health_get,
-    aws_api_gateway_method.alexa_post
+    aws_api_gateway_method.alexa_post,
+    aws_api_gateway_method.root_get
   ]
 
   rest_api_id = aws_api_gateway_rest_api.main.id
 
   triggers = {
     redeployment = sha1(jsonencode([
-      aws_api_gateway_resource.chatbot.id,
-      aws_api_gateway_method.chatbot_post.id,
       aws_api_gateway_integration.chatbot_lambda.id,
-      aws_api_gateway_resource.auth.id,
-      aws_api_gateway_method.auth_post.id,
       aws_api_gateway_integration.auth_lambda.id,
-      aws_api_gateway_resource.health.id,
-      aws_api_gateway_method.health_get.id,
       aws_api_gateway_integration.health_lambda.id,
-      aws_api_gateway_resource.alexa.id,
-      aws_api_gateway_method.alexa_post.id,
       aws_api_gateway_integration.alexa_lambda.id,
+      aws_api_gateway_integration.root_mock.id,
     ]))
   }
 
@@ -57,23 +51,18 @@ resource "aws_api_gateway_stage" "main" {
   deployment_id = aws_api_gateway_deployment.main.id
   rest_api_id   = aws_api_gateway_rest_api.main.id
   stage_name    = var.stage_name
+  depends_on    = [aws_api_gateway_account.account]
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_gateway.arn
     format = jsonencode({
-      requestId      = "$context.requestId"
-      ip             = "$context.identity.sourceIp"
-      caller         = "$context.identity.caller"
-      user           = "$context.identity.user"
-      requestTime    = "$context.requestTime"
-      httpMethod     = "$context.httpMethod"
-      resourcePath   = "$context.resourcePath"
-      status         = "$context.status"
-      protocol       = "$context.protocol"
-      responseLength = "$context.responseLength"
-      responseTime   = "$context.responseTime"
-      error          = "$context.error.message"
+      requestId        = "$context.requestId"
+      httpMethod       = "$context.httpMethod"
+      resourcePath     = "$context.resourcePath"
+      status           = "$context.status"
+      responseLength   = "$context.responseLength"
       integrationError = "$context.integration.error"
+      errorMessage     = "$context.error.message"
     })
   }
 
@@ -90,6 +79,35 @@ resource "aws_cloudwatch_log_group" "api_gateway" {
   tags = var.tags
 }
 
+# IAM role for API Gateway to push logs to CloudWatch
+resource "aws_iam_role" "apigw_cloudwatch" {
+  name = "${var.name_prefix}-apigw-cloudwatch-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = { Service = "apigateway.amazonaws.com" },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "apigw_cloudwatch" {
+  role       = aws_iam_role.apigw_cloudwatch.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+# Account-level setting so API Gateway can write logs
+resource "aws_api_gateway_account" "account" {
+  cloudwatch_role_arn = aws_iam_role.apigw_cloudwatch.arn
+  depends_on          = [aws_iam_role_policy_attachment.apigw_cloudwatch]
+}
+
 # API Gateway Method Settings
 resource "aws_api_gateway_method_settings" "main" {
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -98,8 +116,8 @@ resource "aws_api_gateway_method_settings" "main" {
 
   settings {
     metrics_enabled    = true
-    logging_level      = "INFO"
-    data_trace_enabled = var.environment != "prod"
+    logging_level      = "ERROR"
+    data_trace_enabled = false
     throttling_rate_limit  = var.throttle_rate_limit
     throttling_burst_limit = var.throttle_burst_limit
   }
@@ -149,6 +167,14 @@ resource "aws_api_gateway_authorizer" "cognito" {
 }
 
 # API Resources and Methods
+# Root (/) GET for stage base path
+resource "aws_api_gateway_method" "root_get" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_rest_api.main.root_resource_id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
 
 # /chatbot resource
 resource "aws_api_gateway_resource" "chatbot" {
@@ -161,10 +187,7 @@ resource "aws_api_gateway_method" "chatbot_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.chatbot.id
   http_method   = "POST"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.cognito.id
-
-  request_validator_id = aws_api_gateway_request_validator.main.id
+  authorization = "NONE"
 }
 
 resource "aws_api_gateway_method" "chatbot_options" {
@@ -186,8 +209,6 @@ resource "aws_api_gateway_method" "auth_post" {
   resource_id   = aws_api_gateway_resource.auth.id
   http_method   = "POST"
   authorization = "NONE"
-
-  request_validator_id = aws_api_gateway_request_validator.main.id
 }
 
 resource "aws_api_gateway_method" "auth_options" {
@@ -208,6 +229,13 @@ resource "aws_api_gateway_method" "health_get" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
   resource_id   = aws_api_gateway_resource.health.id
   http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_method" "health_options" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.health.id
+  http_method   = "OPTIONS"
   authorization = "NONE"
 }
 
@@ -236,6 +264,20 @@ resource "aws_api_gateway_request_validator" "main" {
 }
 
 # Lambda Integrations
+resource "aws_api_gateway_integration" "root_mock" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_rest_api.main.root_resource_id
+  http_method = aws_api_gateway_method.root_get.http_method
+
+  type = "MOCK"
+
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
+}
+
 resource "aws_api_gateway_integration" "chatbot_lambda" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   resource_id = aws_api_gateway_resource.chatbot.id
@@ -254,6 +296,7 @@ resource "aws_api_gateway_integration" "auth_lambda" {
   integration_http_method = "POST"
   type                   = "AWS_PROXY"
   uri                    = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.auth_lambda_arn}/invocations"
+  passthrough_behavior   = "WHEN_NO_MATCH"
 }
 
 resource "aws_api_gateway_integration" "health_lambda" {
@@ -264,6 +307,20 @@ resource "aws_api_gateway_integration" "health_lambda" {
   integration_http_method = "POST"
   type                   = "AWS_PROXY"
   uri                    = "arn:aws:apigateway:${data.aws_region.current.name}:lambda:path/2015-03-31/functions/${var.monitoring_lambda_arn}/invocations"
+  passthrough_behavior   = "WHEN_NO_MATCH"
+}
+
+resource "aws_api_gateway_integration" "health_options" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.health.id
+  http_method = aws_api_gateway_method.health_options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = jsonencode({
+      statusCode = 200
+    })
+  }
 }
 
 resource "aws_api_gateway_integration" "alexa_lambda" {
@@ -304,6 +361,16 @@ resource "aws_api_gateway_integration" "auth_options" {
 }
 
 # Method Responses for CORS
+resource "aws_api_gateway_method_response" "root_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_rest_api.main.root_resource_id
+  http_method = aws_api_gateway_method.root_get.http_method
+  status_code = "200"
+
+  response_models = {
+    "application/json" = "Empty"
+  }
+}
 resource "aws_api_gateway_method_response" "chatbot_options" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   resource_id = aws_api_gateway_resource.chatbot.id
@@ -330,7 +397,32 @@ resource "aws_api_gateway_method_response" "auth_options" {
   }
 }
 
+resource "aws_api_gateway_method_response" "health_options" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.health.id
+  http_method = aws_api_gateway_method.health_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
 # Integration Responses for CORS
+resource "aws_api_gateway_integration_response" "root_get" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_rest_api.main.root_resource_id
+  http_method = aws_api_gateway_method.root_get.http_method
+  status_code = aws_api_gateway_method_response.root_get.status_code
+
+  response_templates = {
+    "application/json" = jsonencode({
+      message = "Voice Assistant AI API. Try /health, /auth, /chatbot, /alexa"
+    })
+  }
+}
 resource "aws_api_gateway_integration_response" "chatbot_options" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   resource_id = aws_api_gateway_resource.chatbot.id
@@ -357,6 +449,61 @@ resource "aws_api_gateway_integration_response" "auth_options" {
   }
 }
 
+resource "aws_api_gateway_integration_response" "health_options" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.health.id
+  http_method = aws_api_gateway_method.health_options.http_method
+  status_code = aws_api_gateway_method_response.health_options.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS,POST,PUT'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
 # Data sources
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
+
+# Permissions for API Gateway to invoke Lambda functions
+resource "aws_lambda_permission" "apigw_invoke_chatbot" {
+  statement_id  = "AllowAPIGatewayInvokeChatbot"
+  action        = "lambda:InvokeFunction"
+  function_name = var.chatbot_lambda_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*/*"
+}
+
+resource "aws_lambda_permission" "apigw_invoke_auth" {
+  statement_id  = "AllowAPIGatewayInvokeAuth"
+  action        = "lambda:InvokeFunction"
+  function_name = var.auth_lambda_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*/*"
+}
+
+resource "aws_lambda_permission" "apigw_invoke_monitoring" {
+  statement_id  = "AllowAPIGatewayInvokeMonitoring"
+  action        = "lambda:InvokeFunction"
+  function_name = var.monitoring_lambda_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*/*"
+}
+
+# Explicit method/resource permissions (defense-in-depth)
+resource "aws_lambda_permission" "apigw_invoke_monitoring_health" {
+  statement_id  = "AllowAPIGatewayInvokeMonitoringHealth"
+  action        = "lambda:InvokeFunction"
+  function_name = var.monitoring_lambda_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/${aws_api_gateway_stage.main.stage_name}/GET/health"
+}
+
+resource "aws_lambda_permission" "apigw_invoke_auth_post" {
+  statement_id  = "AllowAPIGatewayInvokeAuthPost"
+  action        = "lambda:InvokeFunction"
+  function_name = var.auth_lambda_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/${aws_api_gateway_stage.main.stage_name}/POST/auth"
+}

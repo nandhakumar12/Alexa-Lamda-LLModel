@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { Auth } from 'aws-amplify';
+// import { Auth } from 'aws-amplify';
 import toast from 'react-hot-toast';
 
 // Types
@@ -57,7 +57,8 @@ interface MetricsResponse {
 }
 
 // API Configuration
-const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'https://4po6882mz6.execute-api.us-east-1.amazonaws.com/prod';
+// Default to the deployed API if env var isn't injected at build time
+const API_BASE_URL = process.env.REACT_APP_API_GATEWAY_URL || 'https://7orgj957oe.execute-api.us-east-1.amazonaws.com/v1';
 const API_TIMEOUT = 15000; // 15 seconds
 
 class ApiService {
@@ -79,21 +80,11 @@ class ApiService {
   }
 
   private setupInterceptors() {
-    // Request interceptor to add auth token
+    // Request interceptor (keep headers minimal to avoid CORS preflights)
     this.client.interceptors.request.use(
       async (config) => {
-        try {
-          // Get current session from Amplify
-          const session = await Auth.currentSession();
-          const token = session.getIdToken().getJwtToken();
-
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
-        } catch (error) {
-          // No valid session, continue without token
-          console.debug('No valid session found');
-        }
+        // We intentionally don't attach Authorization here to keep requests simple.
+        // If you enable Cognito auth for /chatbot again, re-enable this with Amplify.
 
         // Don't add custom headers that trigger preflight
         // config.headers['X-Correlation-ID'] = this.generateCorrelationId();
@@ -113,7 +104,7 @@ class ApiService {
       async (error) => {
         const originalRequest = error.config;
 
-        // Handle 401 errors (unauthorized)
+        // Handle 401 errors (unauthorized) if auth is enabled in the future
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
@@ -183,11 +174,23 @@ class ApiService {
 
   // Chat API methods
   async sendMessage(data: ChatMessage): Promise<ChatResponse> {
-    return this.request<ChatResponse>({
+    // Call backend and normalize the response shape
+    const raw = await this.request<any>({
       method: 'POST',
       url: '/chatbot',
       data,
     });
+
+    // Some backends return { message, timestamp, status } instead of { response }
+    const normalized: ChatResponse = {
+      response: raw?.response ?? raw?.message ?? '',
+      intent: raw?.intent ?? 'general',
+      session_id: raw?.session_id ?? data.session_id,
+      conversation_id: raw?.conversation_id ?? '',
+      audio_url: raw?.audio_url,
+    };
+
+    return normalized;
   }
 
   async sendVoiceMessage(audioBlob: Blob, sessionId: string): Promise<ChatResponse> {

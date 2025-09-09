@@ -1,9 +1,21 @@
 import json
 from datetime import datetime
 
+
+def _parse_json_body(event):
+    raw_body = event.get('body') if isinstance(event, dict) else None
+    if raw_body is None or raw_body == "":
+        return {}
+    if isinstance(raw_body, (dict, list)):
+        return raw_body
+    try:
+        return json.loads(raw_body)
+    except Exception:
+        return {}
+
 def lambda_handler(event, context):
     try:
-        if event.get('httpMethod') == 'OPTIONS':
+        if isinstance(event, dict) and event.get('httpMethod') == 'OPTIONS':
             return {
                 'statusCode': 200,
                 'headers': {
@@ -14,7 +26,7 @@ def lambda_handler(event, context):
                 'body': ''
             }
         
-        body = json.loads(event.get('body', '{}'))
+        body = _parse_json_body(event)
         action = body.get('action', 'health_check')
         
         if action == 'health_check':
@@ -22,8 +34,11 @@ def lambda_handler(event, context):
                 'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
                 },
+                'isBase64Encoded': False,
                 'body': json.dumps({
                     'status': 'healthy',
                     'service': 'auth-handler',
@@ -35,8 +50,11 @@ def lambda_handler(event, context):
                 'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+                    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
                 },
+                'isBase64Encoded': False,
                 'body': json.dumps({
                     'message': 'Auth service is working',
                     'action': action,
@@ -50,6 +68,7 @@ def lambda_handler(event, context):
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
             },
+            'isBase64Encoded': False,
             'body': json.dumps({
                 'error': 'Internal server error',
                 'message': 'Auth service error'

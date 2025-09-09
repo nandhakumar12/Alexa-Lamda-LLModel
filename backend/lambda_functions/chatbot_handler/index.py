@@ -3,7 +3,7 @@ from datetime import datetime
 
 def lambda_handler(event, context):
     try:
-        if event.get('httpMethod') == 'OPTIONS':
+        if isinstance(event, dict) and event.get('httpMethod') == 'OPTIONS':
             return {
                 'statusCode': 200,
                 'headers': {
@@ -14,7 +14,11 @@ def lambda_handler(event, context):
                 'body': ''
             }
         
-        body = json.loads(event.get('body', '{}'))
+        raw_body = event.get('body') if isinstance(event, dict) else None
+        try:
+            body = json.loads(raw_body) if raw_body else {}
+        except Exception:
+            body = {}
         message = body.get('message', '')
         
         if not message:
@@ -37,6 +41,7 @@ def lambda_handler(event, context):
                 'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
                 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
             },
+            'isBase64Encoded': False,
             'body': json.dumps({
                 'message': response_text,
                 'timestamp': datetime.now().isoformat(),

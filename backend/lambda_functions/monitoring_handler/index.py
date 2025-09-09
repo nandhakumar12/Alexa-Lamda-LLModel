@@ -1,25 +1,24 @@
 import json
 from datetime import datetime
 
+
+def _ok_headers():
+    return {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+    }
+
 def lambda_handler(event, context):
     try:
-        if event.get('httpMethod') == 'OPTIONS':
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-                    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
-                },
-                'body': ''
-            }
+        if isinstance(event, dict) and event.get('httpMethod') == 'OPTIONS':
+            return { 'statusCode': 200, 'headers': _ok_headers(), 'body': '' }
         
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
+            'headers': _ok_headers(),
+            'isBase64Encoded': False,
             'body': json.dumps({
                 'status': 'healthy',
                 'service': 'monitoring-handler',

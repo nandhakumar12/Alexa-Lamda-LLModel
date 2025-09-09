@@ -14,8 +14,8 @@ import AuthPage from './pages/AuthPage';
 Amplify.configure({
   Auth: {
     region: process.env.REACT_APP_AWS_REGION || 'us-east-1',
-    userPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID || '',
-    userPoolWebClientId: process.env.REACT_APP_COGNITO_CLIENT_ID || '',
+    userPoolId: process.env.REACT_APP_COGNITO_USER_POOL_ID || 'us-east-1_ID7e0JI2c',
+    userPoolWebClientId: process.env.REACT_APP_COGNITO_CLIENT_ID || '4cnbjqiqk6lmg1f0lddhdlglu4',
     identityPoolId: process.env.REACT_APP_COGNITO_IDENTITY_POOL_ID || '',
     mandatorySignIn: false,
     authenticationFlowType: 'USER_SRP_AUTH'
@@ -24,7 +24,7 @@ Amplify.configure({
     endpoints: [
       {
         name: 'ai-assistant-api',
-        endpoint: process.env.REACT_APP_API_GATEWAY_URL || 'https://temp.execute-api.us-east-1.amazonaws.com/prod',
+        endpoint: process.env.REACT_APP_API_GATEWAY_URL || 'https://7orgj957oe.execute-api.us-east-1.amazonaws.com/v1',
         region: process.env.REACT_APP_AWS_REGION || 'us-east-1'
       }
     ]

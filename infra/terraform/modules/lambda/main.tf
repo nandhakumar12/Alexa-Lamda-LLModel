@@ -5,6 +5,25 @@
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
+# Package Lambda source code from local files
+data "archive_file" "chatbot_zip" {
+  type        = "zip"
+  source_file = "../../backend/lambda_functions/chatbot_handler/index.py"
+  output_path = "../../backend/lambda_functions/chatbot_handler/function.zip"
+}
+
+data "archive_file" "auth_zip" {
+  type        = "zip"
+  source_file = "../../backend/lambda_functions/auth_handler/index.py"
+  output_path = "../../backend/lambda_functions/auth_handler/function.zip"
+}
+
+data "archive_file" "monitoring_zip" {
+  type        = "zip"
+  source_file = "../../backend/lambda_functions/monitoring_handler/index.py"
+  output_path = "../../backend/lambda_functions/monitoring_handler/function.zip"
+}
+
 # KMS Key for Lambda encryption
 resource "aws_kms_key" "lambda" {
   description             = "KMS key for Lambda function encryption"
@@ -105,6 +124,16 @@ resource "aws_iam_policy" "lambda_execution" {
       {
         Effect = "Allow"
         Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ]
+        Resource = [
+          "arn:aws:secretsmanager:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:secret:voice-assistant-ai/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "cloudwatch:PutMetricData"
         ]
         Resource = "*"
@@ -185,13 +214,13 @@ resource "aws_cloudwatch_log_group" "monitoring" {
 resource "aws_lambda_function" "chatbot" {
   function_name = "${var.name_prefix}-chatbot"
   role         = aws_iam_role.lambda_execution.arn
-  handler      = "handler.lambda_handler"
+  handler      = "index.lambda_handler"
   runtime      = var.lambda_runtime
   timeout      = var.lambda_timeout
   memory_size  = var.lambda_memory_size
 
-  filename         = "${path.module}/../../lambda_functions/chatbot_handler/chatbot_handler.zip"
-  source_code_hash = fileexists("${path.module}/../../lambda_functions/chatbot_handler/chatbot_handler.zip") ? filebase64sha256("${path.module}/../../lambda_functions/chatbot_handler/chatbot_handler.zip") : null
+  filename         = data.archive_file.chatbot_zip.output_path
+  source_code_hash = data.archive_file.chatbot_zip.output_base64sha256
 
   environment {
     variables = {
@@ -215,11 +244,10 @@ resource "aws_lambda_function" "chatbot" {
     mode = var.enable_xray_tracing ? "Active" : "PassThrough"
   }
 
-  reserved_concurrent_executions = var.lambda_reserved_concurrency
+  # Use account's unreserved concurrency pool (no explicit reservation)
 
   depends_on = [
-    aws_iam_role_policy_attachment.lambda_execution,
-    aws_cloudwatch_log_group.chatbot
+    aws_iam_role_policy_attachment.lambda_execution
   ]
 
   tags = var.tags
@@ -229,13 +257,13 @@ resource "aws_lambda_function" "chatbot" {
 resource "aws_lambda_function" "auth" {
   function_name = "${var.name_prefix}-auth"
   role         = aws_iam_role.lambda_execution.arn
-  handler      = "handler.lambda_handler"
+  handler      = "index.lambda_handler"
   runtime      = var.lambda_runtime
   timeout      = var.lambda_timeout
   memory_size  = var.lambda_memory_size
 
-  filename         = "${path.module}/../../lambda_functions/auth_handler/auth_handler.zip"
-  source_code_hash = fileexists("${path.module}/../../lambda_functions/auth_handler/auth_handler.zip") ? filebase64sha256("${path.module}/../../lambda_functions/auth_handler/auth_handler.zip") : null
+  filename         = data.archive_file.auth_zip.output_path
+  source_code_hash = data.archive_file.auth_zip.output_base64sha256
 
   environment {
     variables = {
@@ -257,11 +285,10 @@ resource "aws_lambda_function" "auth" {
     mode = var.enable_xray_tracing ? "Active" : "PassThrough"
   }
 
-  reserved_concurrent_executions = var.lambda_reserved_concurrency
+  # Use account's unreserved concurrency pool (no explicit reservation)
 
   depends_on = [
-    aws_iam_role_policy_attachment.lambda_execution,
-    aws_cloudwatch_log_group.auth
+    aws_iam_role_policy_attachment.lambda_execution
   ]
 
   tags = var.tags
@@ -271,13 +298,13 @@ resource "aws_lambda_function" "auth" {
 resource "aws_lambda_function" "monitoring" {
   function_name = "${var.name_prefix}-monitoring"
   role         = aws_iam_role.lambda_execution.arn
-  handler      = "handler.lambda_handler"
+  handler      = "index.lambda_handler"
   runtime      = var.lambda_runtime
   timeout      = var.lambda_timeout
   memory_size  = var.lambda_memory_size
 
-  filename         = "${path.module}/../../lambda_functions/monitoring_handler/monitoring_handler.zip"
-  source_code_hash = fileexists("${path.module}/../../lambda_functions/monitoring_handler/monitoring_handler.zip") ? filebase64sha256("${path.module}/../../lambda_functions/monitoring_handler/monitoring_handler.zip") : null
+  filename         = data.archive_file.monitoring_zip.output_path
+  source_code_hash = data.archive_file.monitoring_zip.output_base64sha256
 
   environment {
     variables = {
@@ -299,11 +326,10 @@ resource "aws_lambda_function" "monitoring" {
     mode = var.enable_xray_tracing ? "Active" : "PassThrough"
   }
 
-  reserved_concurrent_executions = var.lambda_reserved_concurrency
+  # Use account's unreserved concurrency pool (no explicit reservation)
 
   depends_on = [
-    aws_iam_role_policy_attachment.lambda_execution,
-    aws_cloudwatch_log_group.monitoring
+    aws_iam_role_policy_attachment.lambda_execution
   ]
 
   tags = var.tags

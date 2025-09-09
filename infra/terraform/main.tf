@@ -8,6 +8,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4"
+    }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.1"
@@ -65,6 +69,7 @@ module "api_gateway" {
   # Cognito configuration
   cognito_user_pool_arn = module.cognito.user_pool_arn
   
+  
   tags = local.common_tags
 }
 
@@ -116,6 +121,7 @@ module "cognito" {
   
   # Lambda triggers
   pre_authentication_lambda_arn = module.lambda.auth_lambda_arn
+  
   
   tags = local.common_tags
 }
@@ -196,6 +202,7 @@ module "aws_services" {
 
   # Notification settings
   alert_email = var.notification_email
+
 
   tags = local.common_tags
 }
