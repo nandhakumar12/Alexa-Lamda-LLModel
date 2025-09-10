@@ -121,7 +121,9 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "iam:DeleteRolePolicy",
           "cloudfront:CreateInvalidation",
           "cloudfront:GetDistribution",
-          "cloudfront:ListDistributions"
+          "cloudfront:ListDistributions",
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
         ]
         Resource = "*"
       }
@@ -299,6 +301,52 @@ resource "aws_codebuild_project" "deploy_prod" {
   tags = var.tags
 }
 
+# SonarQube CodeBuild Project
+resource "aws_codebuild_project" "sonarqube_analysis" {
+  name        = "${var.name_prefix}-sonarqube-analysis"
+  description = "SonarQube code quality analysis for voice assistant"
+  service_role = aws_iam_role.codebuild_role.arn
+
+  artifacts {
+    type = "CODEPIPELINE"
+  }
+
+  environment {
+    compute_type                = "BUILD_GENERAL1_MEDIUM"
+    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:4.0"
+    type                        = "LINUX_CONTAINER"
+    image_pull_credentials_type = "CODEBUILD"
+
+    environment_variable {
+      name  = "ENVIRONMENT"
+      value = var.environment
+    }
+
+    environment_variable {
+      name  = "SONAR_HOST_URL"
+      value = var.sonar_host_url
+    }
+
+    environment_variable {
+      name  = "SONAR_TOKEN"
+      value = var.sonar_token
+      type  = "SECRETS_MANAGER"
+    }
+
+    environment_variable {
+      name  = "SONAR_ORGANIZATION"
+      value = var.sonar_organization
+    }
+  }
+
+  source {
+    type      = "CODEPIPELINE"
+    buildspec = "buildspec-sonar.yml"
+  }
+
+  tags = var.tags
+}
+
 # CodePipeline Service Role
 resource "aws_iam_role" "codepipeline_role" {
   name = "${var.name_prefix}-codepipeline-role"
@@ -438,6 +486,27 @@ resource "aws_codepipeline" "main" {
 
       configuration = {
         ProjectName = aws_codebuild_project.security_scan.name
+      }
+    }
+  }
+
+  dynamic "stage" {
+    for_each = var.enable_sonarqube ? [1] : []
+    content {
+      name = "SonarQubeAnalysis"
+
+      action {
+        name             = "SonarQubeAnalysis"
+        category         = "Build"
+        owner            = "AWS"
+        provider         = "CodeBuild"
+        input_artifacts  = ["source_output"]
+        output_artifacts = ["sonar_output"]
+        version          = "1"
+
+        configuration = {
+          ProjectName = aws_codebuild_project.sonarqube_analysis.name
+        }
       }
     }
   }

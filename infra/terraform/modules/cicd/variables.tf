@@ -70,3 +70,28 @@ variable "slack_webhook_url" {
   default     = ""
   sensitive   = true
 }
+
+# SonarQube Configuration Variables
+variable "sonar_host_url" {
+  description = "SonarQube server URL"
+  type        = string
+  default     = "https://sonarcloud.io"
+}
+
+variable "sonar_token" {
+  description = "SonarQube token for authentication (stored in Secrets Manager)"
+  type        = string
+  default     = "voice-assistant-ai/sonar-token"
+}
+
+variable "sonar_organization" {
+  description = "SonarQube organization key"
+  type        = string
+  default     = "voice-assistant-ai-org"
+}
+
+variable "enable_sonarqube" {
+  description = "Enable SonarQube analysis in the pipeline"
+  type        = bool
+  default     = true
+}

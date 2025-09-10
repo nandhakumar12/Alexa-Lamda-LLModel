@@ -1,0 +1,67 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.9
+      nodejs: 16
+    commands:
+      - echo "Installing SonarQube Scanner and dependencies..."
+      - pip install --upgrade pip
+      - pip install bandit safety pytest pytest-cov
+      - npm install -g sonarqube-scanner
+      - echo "Installing project dependencies..."
+      - pip install -r backend/lambda_functions/requirements.txt
+      - cd frontend && npm ci && cd ..
+
+  pre_build:
+    commands:
+      - echo "Preparing for SonarQube analysis..."
+      - echo "Environment: $ENVIRONMENT"
+      - echo "SonarQube URL: $SONAR_HOST_URL"
+      - echo "SonarQube Token: ${SONAR_TOKEN:0:10}..."
+
+  build:
+    commands:
+      - echo "Running code quality analysis..."
+      
+      # Generate Python coverage report
+      - echo "Generating Python coverage report..."
+      - cd backend/lambda_functions
+      - python -m pytest . --cov=. --cov-report=xml --cov-report=html --cov-report=term || echo "Some tests failed"
+      - mkdir -p ../../coverage
+      - cp coverage.xml ../../coverage/ || echo "No coverage.xml generated"
+      - cd ../..
+      
+      # Generate JavaScript/TypeScript coverage report
+      - echo "Generating frontend coverage report..."
+      - cd frontend
+      - CI=true npm test -- --coverage --watchAll=false --testTimeout=10000 || echo "Some frontend tests failed"
+      - cd ..
+      
+      # Run SonarQube analysis
+      - echo "Running SonarQube analysis..."
+      - sonar-scanner \
+          -Dsonar.projectKey=voice-assistant-ai \
+          -Dsonar.host.url=$SONAR_HOST_URL \
+          -Dsonar.login=$SONAR_TOKEN \
+          -Dsonar.organization=$SONAR_ORGANIZATION \
+          -Dsonar.python.coverage.reportPaths=coverage/coverage.xml \
+          -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info \
+          -Dsonar.typescript.lcov.reportPaths=frontend/coverage/lcov.info \
+          -Dsonar.sources=frontend/src,backend/lambda_functions,backend/shared,infra/terraform \
+          -Dsonar.tests=frontend/src/__tests__,backend/lambda_functions/tests \
+          -Dsonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup**,**/*.min.js,**/*.bundle.js \
+          -Dsonar.test.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup** \
+          -Dsonar.cpd.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup** \
+          -Dsonar.qualitygate.wait=true
+
+  post_build:
+    commands:
+      - echo "SonarQube analysis completed on $(date)"
+      - echo "Check the SonarQube dashboard for detailed results"
+
+artifacts:
+  files:
+    - '**/*'
+  base-directory: .

@@ -14,7 +14,8 @@ phases:
       - npm --version || echo "NPM version check failed"
       - echo "Installing testing dependencies..."
       - pip install --upgrade pip
-      - pip install pytest pytest-cov black flake8
+      - pip install pytest pytest-cov black flake8 bandit safety
+      - npm install -g sonarqube-scanner
 
   pre_build:
     commands:
@@ -47,9 +48,11 @@ phases:
       - black . --check || echo "Black formatting issues found"
       - flake8 . --max-line-length=88 || echo "Flake8 issues found"
       - cd ../..
-      - echo "Running Python tests..."
+      - echo "Running Python tests with coverage..."
       - cd backend/lambda_functions
-      - python -m pytest . -v || echo "Some tests failed (test files may not exist)"
+      - python -m pytest . --cov=. --cov-report=xml --cov-report=html --cov-report=term -v || echo "Some tests failed (test files may not exist)"
+      - mkdir -p ../../coverage
+      - cp coverage.xml ../../coverage/ || echo "No coverage.xml generated"
       - cd ../..
       - echo "Running frontend tests..."
       - cd frontend

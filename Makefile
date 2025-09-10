@@ -1,7 +1,7 @@
 # Voice Assistant AI - Makefile
 # Production-ready voice assistant with Alexa integration
 
-.PHONY: help install clean lint test build package deploy deploy-infra deploy-app dev logs monitor
+.PHONY: help install clean lint test build package deploy deploy-infra deploy-app dev logs monitor sonar-start sonar-stop sonar-analyze sonar-clean sonar-setup
 
 # Default target
 help: ## Show this help message
@@ -239,6 +239,38 @@ cost-report: ## Generate cost report
 		--granularity MONTHLY \
 		--metrics BlendedCost \
 		--group-by Type=DIMENSION,Key=SERVICE
+
+# SonarQube targets
+.PHONY: sonar-start sonar-stop sonar-analyze sonar-clean
+
+sonar-start:
+	@echo "Starting SonarQube with Docker Compose..."
+	docker-compose -f docker-compose.sonar.yml up -d
+	@echo "SonarQube is starting up. Access it at http://localhost:9000"
+	@echo "Default credentials: admin/admin"
+
+sonar-stop:
+	@echo "Stopping SonarQube..."
+	docker-compose -f docker-compose.sonar.yml down
+
+sonar-analyze:
+	@echo "Running SonarQube analysis..."
+	@if [ -z "$$SONAR_TOKEN" ]; then \
+		echo "Error: SONAR_TOKEN environment variable not set"; \
+		echo "Please set it with: export SONAR_TOKEN=your_token_here"; \
+		exit 1; \
+	fi
+	sonar-scanner
+
+sonar-clean:
+	@echo "Cleaning SonarQube data..."
+	docker-compose -f docker-compose.sonar.yml down -v
+	docker system prune -f
+
+sonar-setup:
+	@echo "Setting up SonarQube..."
+	chmod +x scripts/setup-sonarqube.sh
+	./scripts/setup-sonarqube.sh
 
 # Health checks
 health: ## Check system health
