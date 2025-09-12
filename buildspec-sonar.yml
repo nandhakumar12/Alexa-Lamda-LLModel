@@ -24,24 +24,30 @@ phases:
   build:
     commands:
       - echo "Running code quality analysis..."
-      
-      # Generate Python coverage report
       - echo "Generating Python coverage report..."
       - cd backend/lambda_functions
       - python -m pytest . --cov=. --cov-report=xml --cov-report=html --cov-report=term || echo "Some tests failed"
       - mkdir -p ../../coverage
       - cp coverage.xml ../../coverage/ || echo "No coverage.xml generated"
       - cd ../..
-      
-      # Generate JavaScript/TypeScript coverage report
       - echo "Generating frontend coverage report..."
       - cd frontend
       - CI=true npm test -- --coverage --watchAll=false --testTimeout=10000 || echo "Some frontend tests failed"
       - cd ..
-      
-      # Run SonarQube analysis
       - echo "Running SonarQube analysis..."
-      - sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_TOKEN} -Dsonar.organization=${SONAR_ORGANIZATION} -Dsonar.python.coverage.reportPaths=coverage/coverage.xml -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info -Dsonar.typescript.lcov.reportPaths=frontend/coverage/lcov.info -Dsonar.sources=frontend/src,backend/lambda_functions,backend/shared,infra/terraform -Dsonar.tests=frontend/src/__tests__,backend/lambda_functions/tests -Dsonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup**,**/*.min.js,**/*.bundle.js -Dsonar.test.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup** -Dsonar.cpd.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup** -Dsonar.qualitygate.wait=true
+      - sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                      -Dsonar.host.url=${SONAR_HOST_URL} \
+                      -Dsonar.login=${SONAR_TOKEN} \
+                      -Dsonar.organization=${SONAR_ORGANIZATION} \
+                      -Dsonar.python.coverage.reportPaths=coverage/coverage.xml \
+                      -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info \
+                      -Dsonar.typescript.lcov.reportPaths=frontend/coverage/lcov.info \
+                      -Dsonar.sources=frontend/src,backend/lambda_functions,backend/shared,infra/terraform \
+                      -Dsonar.tests=frontend/src/__tests__,backend/lambda_functions/tests \
+                      -Dsonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup**,**/*.min.js,**/*.bundle.js \
+                      -Dsonar.test.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup** \
+                      -Dsonar.cpd.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup** \
+                      -Dsonar.qualitygate.wait=true
 
   post_build:
     commands:
