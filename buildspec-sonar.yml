@@ -41,21 +41,7 @@ phases:
       
       # Run SonarQube analysis
       - echo "Running SonarQube analysis..."
-      - >-
-        sonar-scanner
-        -Dsonar.projectKey=${SONAR_PROJECT_KEY}
-        -Dsonar.host.url=${SONAR_HOST_URL}
-        -Dsonar.login=${SONAR_TOKEN}
-        -Dsonar.organization=${SONAR_ORGANIZATION}
-        -Dsonar.python.coverage.reportPaths=coverage/coverage.xml
-        -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
-        -Dsonar.typescript.lcov.reportPaths=frontend/coverage/lcov.info
-        -Dsonar.sources=frontend/src,backend/lambda_functions,backend/shared,infra/terraform
-        -Dsonar.tests=frontend/src/__tests__,backend/lambda_functions/tests
-        -Dsonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup**,**/*.min.js,**/*.bundle.js
-        -Dsonar.test.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup**
-        -Dsonar.cpd.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup**
-        -Dsonar.qualitygate.wait=true
+      - sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_TOKEN} -Dsonar.organization=${SONAR_ORGANIZATION} -Dsonar.python.coverage.reportPaths=coverage/coverage.xml -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info -Dsonar.typescript.lcov.reportPaths=frontend/coverage/lcov.info -Dsonar.sources=frontend/src,backend/lambda_functions,backend/shared,infra/terraform -Dsonar.tests=frontend/src/__tests__,backend/lambda_functions/tests -Dsonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup**,**/*.min.js,**/*.bundle.js -Dsonar.test.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup** -Dsonar.cpd.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/coverage/**,**/terraform/.terraform/**,**/terraform/terraform.tfstate**,**/terraform/terraform.tfstate.backup** -Dsonar.qualitygate.wait=true
 
   post_build:
     commands:
