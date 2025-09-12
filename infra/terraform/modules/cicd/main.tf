@@ -337,6 +337,11 @@ resource "aws_codebuild_project" "sonarqube_analysis" {
       name  = "SONAR_ORGANIZATION"
       value = var.sonar_organization
     }
+
+    environment_variable {
+      name  = "SONAR_PROJECT_KEY"
+      value = var.sonar_project_key
+    }
   }
 
   source {

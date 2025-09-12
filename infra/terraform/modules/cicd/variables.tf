@@ -87,7 +87,13 @@ variable "sonar_token" {
 variable "sonar_organization" {
   description = "SonarQube organization key"
   type        = string
-  default     = "voice-assistant-ai-org"
+  default     = "nandhakumar12"
+}
+
+variable "sonar_project_key" {
+  description = "SonarQube project key"
+  type        = string
+  default     = "nandhakumar12_Alexa-Lamda-LLModel"
 }
 
 variable "enable_sonarqube" {
